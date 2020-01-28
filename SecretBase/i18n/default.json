@@ -1,4 +1,15 @@
 ﻿{
-  "template.start": "Started {{mod}} from folder: {{folder}}",
-  "template.key": "Debug Key pressed"
+    "template.start": "Started {{mod}} from folder: {{folder}}",
+
+    "laptop.menu": "Do what?",
+    "laptop.storage": "Storage",
+    "laptop.packup": "Pack Up",
+    "laptop.packprompt": "This will pack all your furniture into storage and close the secret base. Continue?",
+
+    "entry.activate": "Activate", 
+    "entry.deactivate": "Deactivate", 
+
+    "dialogue.y": "Yes",
+    "dialogue.n": "No",
+    "dialogue.cancel": "Cancel"
 }
