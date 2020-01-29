@@ -1,15 +1,18 @@
 ﻿{
     "template.start": "Started {{mod}} from folder: {{folder}}",
 
-    "laptop.menu": "Do what?",
+    "laptop.menuprompt": "Do what?",
+    "laptop.packprompt": "This will pack all your furniture into storage and close the secret base. Continue?",
     "laptop.storage": "Storage",
     "laptop.packup": "Pack Up",
-    "laptop.packprompt": "This will pack all your furniture into storage and close the secret base. Continue?",
 
-    "entry.activate": "Activate", 
-    "entry.deactivate": "Deactivate", 
+    "entry.treeprompt": "If some vines were cut loose, this tree could be climbed.",
+    "entry.caveprompt": "If this boulder were pushed aside, it might reveal a hidden cave.",
+    "entry.bushprompt": "If these branches were moved, it might be possible to go inside.",
+    "entry.activateprompt": "Use secret base?",  
+    "entry.relocateprompt": "You already have a secret base. Pack up and move?",
 
     "dialogue.y": "Yes",
     "dialogue.n": "No",
-    "dialogue.cancel": "Cancel"
+    "dialogue.cancel": "Return"
 }

@@ -5,14 +5,23 @@ using StardewValley.Tools;
 
 namespace SecretBase
 {
-	internal class Const
+	public class Const
 	{
+		public enum Theme
+		{
+			Tree,
+			Rock,
+			Bush,
+			Desert,
+			Cave
+		}
+
 		internal const string BaseEntryAction = "SecretBaseEntry";
 		internal const string LaptopAction = "SecretBaseLaptop";
 		internal const string ExtraLayerId = "SecretBaseStuff";
 		internal const string ModId = "SecretBase";
 		internal const string TilesheetId = "z_secretbase_stuff";
-		internal const string DataFile = "data_{0}";
+		internal const string DataFile = "data_{0}.json";
 
 		// todo: make sve-compatible dictionaries
 		// todo: make stardew reimagined 2 dictionaries
@@ -42,7 +51,7 @@ namespace SecretBase
 
 		internal static readonly Dictionary<string, Vector2> BaseEntryCoordinates = new Dictionary<string, Vector2>
 		{
-			{ "SecretBaseTree0", new Vector2(42, 8) },
+			{ "SecretBaseTree0", new Vector2(41, 8) },
 			{ "SecretBaseTree1", new Vector2(62, 8) },
 			{ "SecretBaseTree2", new Vector2(48, 3) },
 			{ "SecretBaseTree3", new Vector2(29, 10) },

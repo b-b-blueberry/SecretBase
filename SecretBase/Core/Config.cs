@@ -4,13 +4,15 @@ namespace SecretBase
 {
 	public class Config
 	{
-		public SButton DebugWarpKey { get; set; }
+		public SButton DebugWarpBaseKey { get; set; }
+		public SButton DebugWarpHomeKey { get; set; }
 		public bool DebugMode { get; set; }
 
 		public Config()
 		{
-			DebugWarpKey = SButton.O;
-			DebugMode = false;
+			DebugWarpBaseKey = SButton.OemOpenBrackets;
+			DebugWarpHomeKey = SButton.OemCloseBrackets;
+			DebugMode = true;
 		}
 	}
 }
