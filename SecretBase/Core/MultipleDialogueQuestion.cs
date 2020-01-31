@@ -4,7 +4,7 @@ using StardewModdingAPI;
 using StardewValley;
 using StardewValley.Menus;
 
-namespace SecretBase.Core
+namespace SecretBase
 {
 	internal class MultipleDialogueQuestion : DialogueBox
 	{

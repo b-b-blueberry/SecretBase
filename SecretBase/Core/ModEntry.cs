@@ -12,7 +12,6 @@ using StardewValley.Menus;
 using StardewValley.Tools;
 
 using Microsoft.Xna.Framework;
-using SecretBase.Core;
 using xTile;
 using xTile.Dimensions;
 using xTile.ObjectModel;
@@ -33,7 +32,7 @@ namespace SecretBase
 		internal ModData ModState;
 		internal Dictionary<long, Chest> GlobalStorage = new Dictionary<long, Chest>();
 
-		private List<string> _maps;
+		//private List<string> _maps;
 
 		public override void Entry(IModHelper helper)
 		{
@@ -41,8 +40,6 @@ namespace SecretBase
 
 			Config = helper.ReadConfig<Config>();
 			
-			helper.Content.AssetEditors.Add(new Editors.WorldEditor(helper));
-
 			helper.Events.Input.ButtonReleased += OnButtonReleased;
 			helper.Events.GameLoop.GameLaunched += OnGameLaunched;
 			helper.Events.GameLoop.Saved += OnSaved;
@@ -59,24 +56,22 @@ namespace SecretBase
 
 		private void OnGameLaunched(object sender, GameLaunchedEventArgs e)
 		{
-			LoadMaps();
+			Helper.Content.AssetEditors.Add(new Editors.WorldEditor(Helper));
 		}
-		
+
 		private void OnSaveLoaded(object sender, SaveLoadedEventArgs e)
 		{
-			AddLocations();
+			AddReturnWarps();
 			LoadModState();
 		}
 
 		private void OnSaving(object sender, SavingEventArgs e)
 		{
 			SaveModState();
-			RemoveLocations();
 		}
 
 		private void OnSaved(object s, EventArgs e)
 		{
-			AddLocations();
 			LoadModState();
 		}
 
@@ -182,70 +177,19 @@ namespace SecretBase
 
 		/* Private methods */
 		
-		private void LoadMaps()
+		private void AddReturnWarps()
 		{
-			var maps = new List<string>();
-			foreach (var file in Directory.EnumerateFiles(
-				Path.Combine(Helper.DirectoryPath, "Assets", "Maps")))
+			foreach (var location in Game1.locations.Where(_ => _.Name.StartsWith(Const.ModId)))
 			{
-				var ext = Path.GetExtension(file);
-				if (ext == null || !ext.Equals(".tbin"))
-					continue;
-				var map = Path.GetFileNameWithoutExtension(file);
-				if (map == null)
-					continue;
-				try
-				{
-					Helper.Content.Load<Map>($@"Assets/Maps/{map}.tbin");
-					maps.Add(map);
-				}
-				catch (Exception ex)
-				{
-					Log.E($"Unable to load {map}.\n" + ex);
-				}
+				// Update return warps
+				var name = location.Name;
+				var warp = ((string)location.Map.Properties["Warp"]).Split(' ');
+				warp[2] = Const.BaseEntryLocations[name];
+				warp[3] = GetSecretBaseCoordinates(name).X.ToString();
+				warp[4] = (GetSecretBaseCoordinates(name).Y + 2f).ToString();
+				location.Map.Properties["Warp"] = string.Join(" ", warp);
+				location.updateWarps();
 			}
-			_maps = maps;
-		}
-
-		private void AddLocations()
-		{
-			foreach (var map in _maps)
-			{
-				try
-				{
-					var mapAssetKey = Helper.Content.GetActualAssetKey(
-						$@"Assets/Maps/{map}.tbin");
-					var loc = new DecoratableLocation(
-						mapAssetKey,
-						map);
-
-					// Tag maps to this mod
-					if (!loc.Map.Properties.ContainsKey(Const.ModId))
-						loc.Map.Properties.Add(Const.ModId, true);
-
-					// Update return warps
-					var warp = ((string) loc.Map.Properties["Warp"]).Split(' ');
-					warp[2] = Const.BaseEntryLocations[map];
-					warp[3] = GetSecretBaseCoordinates(map).X.ToString();
-					warp[4] = (GetSecretBaseCoordinates(map).Y + 2f).ToString();
-					loc.Map.Properties["Warp"] = string.Join(" ", warp);
-					loc.updateWarps();
-
-;					// Add new maps to game locations
-					Game1.locations.Add(loc);
-				}
-				catch (Exception ex)
-				{
-					Log.E($"Failed to add {map}\n" + ex);
-				}
-			}
-		}
-
-		private void RemoveLocations()
-		{
-			foreach (var location in Game1.locations.Where(
-				_ => _.map.Properties.ContainsKey(Const.ModId)).ToArray())
-				Game1.locations.Remove(location);
 		}
 
 		private string GetDataFile()
@@ -278,7 +222,7 @@ namespace SecretBase
 							Const.DummyChestCoords + GlobalStorage.Count, 
 							Const.DummyChestCoords);
 
-					var dummyChest = (Chest) farm.getObjectAt((int)coords.X, (int)coords.Y);
+					var dummyChest = (Chest) farm.Objects[coords];
 					if (dummyChest != null)
 					{
 						// Populate with existing chests
@@ -552,7 +496,7 @@ namespace SecretBase
 		/// </summary>
 		private void SecretBasePackUp(Farmer who)
 		{
-			var location = (DecoratableLocation) Game1.getLocationFromName(GetSecretBaseForFarmer(who));
+			var location = Game1.getLocationFromName(GetSecretBaseForFarmer(who));
 			var coords = GetSecretBaseCoordinates(location.Name);
 
 			Log.D($"Packing up {location.Name}");
@@ -583,11 +527,11 @@ namespace SecretBase
 				}
 			}
 			location.objects.Clear();
-
+			/*
 			foreach (var f in location.furniture)
 				AddToStorage(who, f);
 			location.furniture.Clear();
-
+			*/
 			// Mark the secret base as inactive, allowing it to be used by other players
 			ModState.SecretBaseOwnership.Remove(GetSecretBaseForFarmer(who));
 		}
@@ -660,7 +604,11 @@ namespace SecretBase
 		private void DebugWarpBase()
 		{
 			var who = Game1.player;
-			var whichBase = _maps[new Random().Next(_maps.Count - 1)];
+			var locations = Game1.locations.Where(_ => _.Name.StartsWith(Const.ModId)).ToArray();
+			var names = new string[locations.Length - 1];
+			for (var i = 0; i < names.Length; ++i)
+				names[i] = locations[i].Name;
+			var whichBase = names[new Random().Next(names.Length - 1)];
 			var where = Const.BaseEntryLocations[whichBase];
 			var coords = Const.BaseEntryCoordinates[whichBase];
 
