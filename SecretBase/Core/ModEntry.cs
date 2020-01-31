@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -13,6 +12,7 @@ using StardewValley.Menus;
 using StardewValley.Tools;
 
 using Microsoft.Xna.Framework;
+using SecretBase.Core;
 using xTile;
 using xTile.Dimensions;
 using xTile.ObjectModel;
@@ -30,7 +30,8 @@ namespace SecretBase
 		internal Config Config;
 		internal ITranslationHelper i18n => Helper.Translation;
 
-		internal static ModData ModData;
+		internal ModData ModState;
+		internal Dictionary<long, Chest> GlobalStorage = new Dictionary<long, Chest>();
 
 		private List<string> _maps;
 
@@ -47,8 +48,10 @@ namespace SecretBase
 			helper.Events.GameLoop.Saved += OnSaved;
 			helper.Events.GameLoop.SaveLoaded += OnSaveLoaded;
 			helper.Events.GameLoop.Saving += OnSaving;
+			helper.Events.Player.Warped += OnWarped;
 
-			// todo: possibly have OnDayStarted check if the player is still able to have a base, and if not, do secretbasepackup
+			// todo: possibly have OnDayStarted check if the player is still able to have a base,
+			// and if not, do secretbasepackup
 		}
 
 
@@ -87,11 +90,33 @@ namespace SecretBase
 			if (e.Button.IsActionButton())
 				CheckForAction();
 
-			if (Config.DebugMode && e.Button.Equals(Config.DebugWarpBaseKey))
-				DebugWarpBase();
+			/* Debug hotkeys */
 
-			if (Config.DebugMode && e.Button.Equals(Config.DebugWarpHomeKey))
+			if (!Config.DebugMode)
+				return;
+
+			if (e.Button.Equals(Config.DebugWarpBaseKey))
+				DebugWarpBase();
+			if (e.Button.Equals(Config.DebugWarpHomeKey))
 				DebugWarpHome();
+			if (e.Button.Equals(Config.DebugSaveStateKey))
+				DebugSaveState();
+			if (e.Button.Equals(Config.DebugFillStorageKey))
+				DebugFillStorage();
+		}
+
+		private void OnWarped(object sender, WarpedEventArgs e)
+		{
+			// todo: block guests from interacting with furniture in other bases
+			/*
+			if (_maps.Contains(e.OldLocation.Name))
+			{
+			}
+			if (_maps.Contains(e.NewLocation.Name))
+			{
+
+			}
+			*/
 		}
 
 
@@ -120,22 +145,22 @@ namespace SecretBase
 			return theme;
 		}
 
-		public static string GetSecretBaseForFarmer(Farmer who)
+		public string GetSecretBaseForFarmer(Farmer who)
 		{
-			return ModData.SecretBaseOwnership.FirstOrDefault(b => b.Value.Equals(who.UniqueMultiplayerID)).Key;
+			return ModState.SecretBaseOwnership.FirstOrDefault(b => b.Value.Equals(who.UniqueMultiplayerID)).Key;
 		}
 
-		public static Vector2 GetSecretBaseCoordinatesForFarmer(Farmer who)
+		public Vector2 GetSecretBaseCoordinatesForFarmer(Farmer who)
 		{
 			return Const.BaseEntryCoordinates.FirstOrDefault(a => a.Key.Equals(GetSecretBaseForFarmer(who))).Value;
 		}
 
-		public static Vector2 GetSecretBaseCoordinates(string whichBase)
+		public Vector2 GetSecretBaseCoordinates(string whichBase)
 		{
 			return Const.BaseEntryCoordinates[whichBase];
 		}
 
-		public static string GetNearestSecretBase(Vector2 coords)
+		public string GetNearestSecretBase(Vector2 coords)
 		{
 			var nearbyBases = Const.BaseEntryCoordinates.Where(
 				_ => Const.BaseEntryLocations.ContainsKey(_.Key));
@@ -143,15 +168,15 @@ namespace SecretBase
 				_ => Math.Abs(_.Value.X - coords.X) + Math.Abs(_.Value.Y - coords.Y)).First().Key;
 		}
 
-		public static bool DoesAnyoneOwnSecretBase(string whichBase)
+		public bool DoesAnyoneOwnSecretBase(string whichBase)
 		{
-			return ModData.SecretBaseOwnership.ContainsKey(whichBase);
+			return ModState.SecretBaseOwnership.ContainsKey(whichBase);
 		}
 
-		public static bool DoesFarmerOwnSecretBase(Farmer who, string whichBase)
+		public bool DoesFarmerOwnSecretBase(Farmer who, string whichBase)
 		{
 			return DoesAnyoneOwnSecretBase(whichBase)
-			       && ModData.SecretBaseOwnership[whichBase] == who.UniqueMultiplayerID;
+			       && ModState.SecretBaseOwnership[whichBase] == who.UniqueMultiplayerID;
 		}
 
 
@@ -166,12 +191,12 @@ namespace SecretBase
 				var ext = Path.GetExtension(file);
 				if (ext == null || !ext.Equals(".tbin"))
 					continue;
-				var map = Path.GetFileName(file);
+				var map = Path.GetFileNameWithoutExtension(file);
 				if (map == null)
 					continue;
 				try
 				{
-					Helper.Content.Load<Map>($@"Assets/Maps/{map}");
+					Helper.Content.Load<Map>($@"Assets/Maps/{map}.tbin");
 					maps.Add(map);
 				}
 				catch (Exception ex)
@@ -188,12 +213,11 @@ namespace SecretBase
 			{
 				try
 				{
-					var name = Path.GetFileNameWithoutExtension(map);
 					var mapAssetKey = Helper.Content.GetActualAssetKey(
-						$@"Assets/Maps/{map}");
+						$@"Assets/Maps/{map}.tbin");
 					var loc = new DecoratableLocation(
 						mapAssetKey,
-						name);
+						map);
 
 					// Tag maps to this mod
 					if (!loc.Map.Properties.ContainsKey(Const.ModId))
@@ -201,9 +225,9 @@ namespace SecretBase
 
 					// Update return warps
 					var warp = ((string) loc.Map.Properties["Warp"]).Split(' ');
-					warp[2] = Const.BaseEntryLocations[name];
-					warp[3] = GetSecretBaseCoordinates(name).X.ToString();
-					warp[4] = (GetSecretBaseCoordinates(name).Y + 2f).ToString();
+					warp[2] = Const.BaseEntryLocations[map];
+					warp[3] = GetSecretBaseCoordinates(map).X.ToString();
+					warp[4] = (GetSecretBaseCoordinates(map).Y + 2f).ToString();
 					loc.Map.Properties["Warp"] = string.Join(" ", warp);
 					loc.updateWarps();
 
@@ -224,19 +248,52 @@ namespace SecretBase
 				Game1.locations.Remove(location);
 		}
 
+		private string GetDataFile()
+		{
+			return Path.Combine("data", string.Format(Const.DataFile, Constants.SaveFolderName));
+		}
+
 		/// <summary>
 		/// Loads in the mod state from the data file for this savegame.
 		/// </summary>
 		private void LoadModState()
 		{
-			var datafile = string.Format(Const.DataFile, Game1.GetSaveGameName());
-			ModData = Helper.Data.ReadJsonFile<ModData>(datafile) ?? new ModData();
+			var farm = Game1.getLocationFromName("Farm"); // hehehehe
+			var datafile = GetDataFile();
+			ModState = Helper.Data.ReadJsonFile<ModData>(datafile) ?? new ModData();
 			
-			// todo: load furniture and objects from saved mod data
-
-			if (ModData.GlobalStorage?.Count == 0)
+			// Repopulate object storage
+			if (GlobalStorage?.Count == 0)
+			{
 				foreach (var player in Game1.getAllFarmers())
-					ModData.GlobalStorage.Add(player.UniqueMultiplayerID, new Chest(playerChest:true));
+				{
+					var coords = Vector2.Zero;
+
+					if (GlobalStorage.ContainsKey(player.UniqueMultiplayerID))
+						// Use existing coordinates for chests already tied to the player
+						coords = GlobalStorage[player.UniqueMultiplayerID].TileLocation;
+					else
+						// Use next coordinates across for chests being tied to new players
+						coords = new Vector2(
+							Const.DummyChestCoords + GlobalStorage.Count, 
+							Const.DummyChestCoords);
+
+					var dummyChest = (Chest) farm.getObjectAt((int)coords.X, (int)coords.Y);
+					if (dummyChest != null)
+					{
+						// Populate with existing chests
+						GlobalStorage.Add(player.UniqueMultiplayerID, dummyChest);
+					}
+					else
+					{
+						// Populate with new chests
+						dummyChest = new Chest(
+							playerChest: true, tileLocation: coords);
+						farm.Objects.Add(coords, dummyChest);
+						GlobalStorage.Add(player.UniqueMultiplayerID, dummyChest);
+					}
+				}
+			}
 		}
 
 		/// <summary>
@@ -244,11 +301,8 @@ namespace SecretBase
 		/// </summary>
 		private void SaveModState()
 		{
-			var datafile = string.Format(Const.DataFile, Game1.GetSaveGameName());
-			// . . ? ?
-			// todo: save furniture and object contents of each secret base to be restored later
-
-			Helper.Data.WriteJsonFile(datafile, ModData);
+			var datafile = GetDataFile();
+			Helper.Data.WriteJsonFile(datafile, ModState);
 		}
 
 		/// <summary>
@@ -256,7 +310,9 @@ namespace SecretBase
 		/// </summary>
 		private void CheckForAction()
 		{
-			var grabTile = new Vector2(Game1.getOldMouseX() + Game1.viewport.X, Game1.getOldMouseY() + Game1.viewport.Y)
+			var grabTile = new Vector2(
+				               Game1.getOldMouseX() + Game1.viewport.X, 
+				               Game1.getOldMouseY() + Game1.viewport.Y)
 			               / Game1.tileSize;
 			if (!Utility.tileWithinRadiusOfPlayer((int)grabTile.X, (int)grabTile.Y, 1, Game1.player))
 				grabTile = Game1.player.GetGrabTile();
@@ -273,10 +329,11 @@ namespace SecretBase
 			Array.Copy(strArray, 1, args, 0, args.Length);
 
 			if (strArray[0].Equals(Const.BaseEntryAction))
-				// Actions on each Base Entry building will open a contextual dialogue tree.
+				// Actions on each Base Entry building will open a contextual dialogue tree
 				SecretBaseEntryDialogue(Game1.player, grabTile);
+
 			else if (strArray[0].Equals(Const.LaptopAction))
-				// Actions on the Laptop building will open a dialogue tree.
+				// Actions on the Laptop building will open a dialogue tree
 				LaptopRootDialogue();
 		}
 
@@ -309,12 +366,10 @@ namespace SecretBase
 		/// </summary>
 		private void SecretBaseEntryDialogue(Farmer who, Vector2 actionCoords)
 		{
+			var location = who.currentLocation;
 			var whichBase = GetNearestSecretBase(actionCoords);
 			var theme = GetSecretBaseTheme(whichBase);
-
-			var options = new List<Response>();
-			var question = i18n.Get("laptop.menuprompt");
-
+			
 			if (DoesFarmerOwnSecretBase(who, whichBase))
 			{
 				// todo: play entry sound effect for all secret base themes
@@ -322,10 +377,11 @@ namespace SecretBase
 				//if (theme == Const.Theme.Tree)
 				//	sfx = "leafrustle";
 				// . . .
-				who.currentLocation.playSound(sfx);
+				location.playSound(sfx);
 
 				// Warp the player inside the secret base.
-				var dest = ((string)Game1.getLocationFromName(whichBase).Map.Properties["Warp"]).Split(' ');
+				var dest = ((string)Game1.getLocationFromName(whichBase).Map.Properties["Warp"])
+					.Split(' ');
 				who.warpFarmer(new Warp(0, 0, whichBase, 
 					int.Parse(dest[0]), int.Parse(dest[1]) - 1, false));
 			}
@@ -333,32 +389,28 @@ namespace SecretBase
 			{
 				// todo: if this base already owned, offer entry confirm/deny to the owner
 				//		(just once/always/not today/never
-
-				// todo: if this base not owned, prompt for packup or cancel
-
-				// todo: block guests from interacting with furniture in other bases
+				
 			}
 			else
 			{
-				// Popup an inspection dialogue for unowned bases before the question dialogue
+				// Popup an inspection dialogue for unowned bases deciding on a question dialogue
+				var dialogue = new List<string>{ i18n.Get("entry.treeprompt") };
+				var options = new List<Response>();
 
-				// todo: queue up the inspection dialogue before the question dialogue
-
-				var inspectDialogue = i18n.Get("entry.treeprompt");
 				if (theme == Const.Theme.Rock || theme == Const.Theme.Desert || theme == Const.Theme.Cave)
-					inspectDialogue = i18n.Get("entry.caveprompt");
+					dialogue[0] = i18n.Get("entry.caveprompt");
 				else if (theme == Const.Theme.Bush)
-					inspectDialogue = i18n.Get("entry.bushprompt");
-				Game1.drawDialogueNoTyping(inspectDialogue);
+					dialogue[0] = i18n.Get("entry.bushprompt");
 
 				if (GetSecretBaseForFarmer(who) == null)
 				{
 					// Prompt to take control of this base
 					if (CanFarmerHaveSecretBase(who))
 					{
-						question = i18n.Get("entry.activateprompt");
+						dialogue.Add(i18n.Get("entry.activateprompt"));
 						options.Add(new Response("activate", i18n.Get("dialogue.y")));
 						options.Add(new Response("cancel", i18n.Get("dialogue.n")));
+						CreateMultipleDialogueQuestion(dialogue, options, location, DialogueAnswers);
 					}
 				}
 				else
@@ -366,16 +418,18 @@ namespace SecretBase
 					// Prompt to abandon current base and take control
 					if (CanFarmerHaveSecretBase(who))
 					{
-						question = i18n.Get("entry.relocateprompt");
+						dialogue.Add(i18n.Get("entry.relocateprompt"));
 						options.Add(new Response("packprompt", i18n.Get("dialogue.y")));
 						options.Add(new Response("cancel", i18n.Get("dialogue.n")));
+						CreateMultipleDialogueQuestion(dialogue, options, location, DialogueAnswers);
+					}
+					else
+					{
+						// Offer no prompt, only an inspection dialogue
+						Game1.drawDialogueNoTyping(dialogue[0]);
 					}
 				}
 			}
-
-			if (options.Count > 0)
-				who.currentLocation.createQuestionDialogue(
-					question, options.ToArray(), DialogueAnswers);
 		}
 
 		/// <summary>
@@ -386,8 +440,8 @@ namespace SecretBase
 		{
 			var nearestBase = GetNearestSecretBase(who.getTileLocation());
 
-			ModData.SecretBaseOwnership[nearestBase] = who.UniqueMultiplayerID;
-			SecretBaseActivationFX(who, nearestBase);
+			ModState.SecretBaseOwnership[nearestBase] = who.UniqueMultiplayerID;
+			SecretBaseActivationFx(who, nearestBase);
 
 			Log.D($@"Invalidating cache for Maps/{Game1.player.currentLocation.Name}");
 			Helper.Content.InvalidateCache($@"Maps/{Game1.player.currentLocation.Name}");
@@ -396,7 +450,7 @@ namespace SecretBase
 		/// <summary>
 		/// Adds temporary fx in the overworld when a secret base is activated.
 		/// </summary>
-		private void SecretBaseActivationFX(Farmer who, string whichBase)
+		private void SecretBaseActivationFx(Farmer who, string whichBase)
 		{
 			var coords = GetSecretBaseCoordinates(whichBase);
 			var theme = GetSecretBaseTheme(whichBase);
@@ -460,47 +514,35 @@ namespace SecretBase
 				Game1.player.CurrentTool = lastTool;
 			}
 		}
+		
+		private void CreateMultipleDialogueQuestion(List<string> dialogues, List<Response> answerChoices,
+			GameLocation where, GameLocation.afterQuestionBehavior afterDialogueBehavior)
+		{
+			where.afterQuestion = afterDialogueBehavior;
+			Game1.activeClickableMenu = new MultipleDialogueQuestion(Helper, dialogues, answerChoices);
+			Game1.dialogueUp = true;
+			Game1.player.canMove = false;
+		}
 
-		/* Chains question dialogue prompts by delivering them on the next tick. */
+		/* Chained question dialogues delivered on the next tick. */
+		
 		private void OpenPackDialogueOnNextTick(object sender, UpdateTickedEventArgs e)
 		{
+			Log.D("OpenPackDialogueOnNextTick");
 			Helper.Events.GameLoop.UpdateTicked -= OpenPackDialogueOnNextTick;
-			LaptopPackUpDialogue();
+			SecretBasePackUpDialogue();
 		}
 
-		// todo: add laptop menu for allowed/blocked players if this farm has farmhands
-		// their name, their portrait, their base location if visited, allow/block menu
-
-		/// <summary>
-		/// Root dialogue menu for player interactions with the laptop in the secret base.
-		/// Offers base management options and item management from storage.
-		/// </summary>
-		private void LaptopRootDialogue()
+		private void SecretBasePackUpDialogue()
 		{
 			var location = Game1.player.currentLocation;
-			var options = new List<Response>();
-			if (ModData.GlobalStorage[Game1.player.UniqueMultiplayerID].items.Count > 0)
-				options.Add(new Response("storage", i18n.Get("laptop.storage")));
-			options.Add(new Response("packprompt", i18n.Get("laptop.packup")));
-			options.Add(new Response("cancel", i18n.Get("dialogue.cancel")));
-
-			location.createQuestionDialogue(
-				i18n.Get("laptop.menuprompt"), options.ToArray(), DialogueAnswers);
-		}
-
-		/// <summary>
-		/// Additional question dialogue for confirming secret base deactivation.
-		/// </summary>
-		private void LaptopPackUpDialogue()
-		{
-			var location = Game1.player.currentLocation;
+			var question = i18n.Get("laptop.packprompt");
 			var options = new List<Response>
 			{
 				new Response("packup", i18n.Get("dialogue.y")),
 				new Response("cancel", i18n.Get("dialogue.n")),
 			};
-			location.createQuestionDialogue(
-				i18n.Get("laptop.packprompt"), options.ToArray(), DialogueAnswers);
+			location.createQuestionDialogue(question, options.ToArray(), DialogueAnswers);
 		}
 
 		/// <summary>
@@ -529,15 +571,46 @@ namespace SecretBase
 
 			// Remove all placed objects from the map and save them to the global storage data model
 			foreach (var o in location.objects.Values)
-				ModData.GlobalStorage[who.UniqueMultiplayerID].addItem(o);
+			{
+				if (o.GetType() != typeof(Chest))
+					AddToStorage(who, o);
+				else
+				{
+					// Deposit chest contents into storage
+					foreach (var c in ((Chest) o).items)
+						AddToStorage(who, c);
+					AddToStorage(who, (Chest)o);
+				}
+			}
 			location.objects.Clear();
 
 			foreach (var f in location.furniture)
-				ModData.GlobalStorage[who.UniqueMultiplayerID].addItem(f);
+				AddToStorage(who, f);
 			location.furniture.Clear();
 
 			// Mark the secret base as inactive, allowing it to be used by other players
-			ModData.SecretBaseOwnership.Remove(GetSecretBaseForFarmer(who));
+			ModState.SecretBaseOwnership.Remove(GetSecretBaseForFarmer(who));
+		}
+
+		// todo: add laptop menu for allowed/blocked players if this farm has farmhands
+		// their name, their portrait, their base location if visited, allow/block menu
+
+		/// <summary>
+		/// Root dialogue menu for player interactions with the laptop in the secret base.
+		/// Offers base management options and item management from storage.
+		/// </summary>
+		private void LaptopRootDialogue()
+		{
+			var location = Game1.player.currentLocation;
+			var question = i18n.Get("laptop.menuprompt");
+			var options = new List<Response>();
+
+			if (GlobalStorage[Game1.player.UniqueMultiplayerID].items.Count > 0)
+				options.Add(new Response("storage", i18n.Get("laptop.storage")));
+			options.Add(new Response("packprompt", i18n.Get("laptop.packup")));
+			options.Add(new Response("cancel", i18n.Get("dialogue.cancel")));
+
+			location.createQuestionDialogue(question, options.ToArray(), DialogueAnswers);
 		}
 
 		/// <summary>
@@ -546,29 +619,48 @@ namespace SecretBase
 		/// </summary>
 		private void LaptopStorageDialogue()
 		{
+			var chest = GlobalStorage[Game1.player.UniqueMultiplayerID];
+			chest.clearNulls();
 			Game1.activeClickableMenu = new ItemGrabMenu(
-				ModData.GlobalStorage[Game1.player.UniqueMultiplayerID].items)
+				chest.items)
 			{
-				behaviorOnItemGrab = OnFurnitureGrabbed
+				behaviorOnItemGrab = delegate(Item item, Farmer who)
+				{
+					if (item != null)
+						chest.items.Remove(item);
+				}
 			};
 		}
 
 		/// <summary>
-		/// Clears items from global storage when picked from the laptop storage prompt.
+		/// Add items to the global storage chest, bypassing the limit check.
 		/// </summary>
-		public void OnFurnitureGrabbed(Item item, Farmer who)
+		/// <param name="who"></param>
+		/// <param name="item"></param>
+		private void AddToStorage(Farmer who, Item item)
 		{
-			if (item != null)
-				ModData.GlobalStorage[Game1.player.UniqueMultiplayerID].items.Remove(item);
+			var chest = GlobalStorage[who.UniqueMultiplayerID];
+			item.resetState();
+			chest.clearNulls();
+			foreach (var i in chest.items)
+			{
+				if (i != null && i.canStackWith(item))
+				{
+					item.Stack = i.addToStack(item);
+					if (item.Stack <= 0)
+						return;
+				}
+			}
+			chest.items.Add(item);
 		}
-
+		
 		/// <summary>
 		/// Warps the player in front of a random secret base.
 		/// </summary>
 		private void DebugWarpBase()
 		{
 			var who = Game1.player;
-			var whichBase = Path.GetFileNameWithoutExtension(_maps[new Random().Next(_maps.Count - 1)]);
+			var whichBase = _maps[new Random().Next(_maps.Count - 1)];
 			var where = Const.BaseEntryLocations[whichBase];
 			var coords = Const.BaseEntryCoordinates[whichBase];
 
@@ -579,13 +671,40 @@ namespace SecretBase
 				coords = Const.BaseEntryCoordinates[whichBase];
 			}
 
-			who.warpFarmer(new Warp(0, 0, where, (int)coords.X, (int)coords.Y + 2, false));
 			Log.D($"Warped {who} to {where} at {coords.X}, {coords.Y}");
+
+			who.warpFarmer(new Warp(0, 0, where, (int)coords.X, (int)coords.Y + 2, false));
 		}
 
 		private void DebugWarpHome()
 		{
-			Game1.player.warpFarmer(new Warp(0, 0, "Farmhouse", 20, 5, false));
+			var who = Game1.player;
+			var where = "Farmhouse";
+			var coords = new Vector2(25, 15);
+
+			Log.D($"Warped {who} to {where} at {coords.X}, {coords.Y}");
+
+			who.warpFarmer(new Warp(0, 0, where, (int)coords.X, (int)coords.Y, false));
+		}
+
+		private void DebugSaveState()
+		{
+			Log.D("Forced a saved state.");
+
+			SaveModState();
+		}
+
+		private void DebugFillStorage()
+		{
+			var who = Game1.player;
+			var random = new Random();
+			var max = Game1.objectInformation.Count - 1;
+			var count = 50;
+
+			Log.D($"Populating {who.Name}'s storage with {count} items.");
+
+			for (var i = 0; i < count; ++i)
+				AddToStorage(who, new StardewValley.Object(random.Next(max), 1));
 		}
 	}
 }

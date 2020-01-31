@@ -1,7 +1,5 @@
 ﻿using System.Collections.Generic;
-using System.Linq.Expressions;
 using Microsoft.Xna.Framework;
-using StardewValley.Tools;
 
 namespace SecretBase
 {
@@ -16,12 +14,13 @@ namespace SecretBase
 			Cave
 		}
 
-		internal const string BaseEntryAction = "SecretBaseEntry";
-		internal const string LaptopAction = "SecretBaseLaptop";
-		internal const string ExtraLayerId = "SecretBaseStuff";
 		internal const string ModId = "SecretBase";
+		internal const string BaseEntryAction = ModId + "Entry";
+		internal const string LaptopAction = ModId + "Laptop";
+		internal const string ExtraLayerId = ModId + "Stuff";
 		internal const string TilesheetId = "z_secretbase_stuff";
-		internal const string DataFile = "data_{0}.json";
+		internal const string DataFile = "moddata_{0}.json";
+		internal const int DummyChestCoords = -100;
 
 		// todo: make sve-compatible dictionaries
 		// todo: make stardew reimagined 2 dictionaries

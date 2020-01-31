@@ -1,17 +1,14 @@
 ﻿using System.Collections.Generic;
-using StardewValley.Objects;
 
 namespace SecretBase
 {
-	internal class ModData
+	public class ModData
 	{
-		internal Dictionary<string, long> SecretBaseOwnership { get; set; }
-		internal Dictionary<long, Chest> GlobalStorage { get; set; }
+		public Dictionary<string, long> SecretBaseOwnership { get; set; }
 
-		internal ModData()
+		public ModData()
 		{
 			SecretBaseOwnership = new Dictionary<string, long>();
-			GlobalStorage = new Dictionary<long, Chest>();
 		}
 	}
 }
