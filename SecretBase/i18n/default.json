@@ -2,7 +2,7 @@
     "look.at.those.tokens": "Started {{mod}} from folder: {{folder}}",
 
     "laptop.menuprompt": "Do what?",
-    "laptop.packprompt": "This will pack all your furniture into storage and close the secret base. Continue?",
+    "laptop.packprompt": "This will pack all your furniture into storage and close the Secret Base. Continue?",
     "laptop.storage": "Storage",
     "laptop.packup": "Pack Up",
 
@@ -10,7 +10,7 @@
     "entry.caveprompt": "If this boulder were pushed aside, it might reveal a hidden cave.",
     "entry.bushprompt": "If these branches were moved, it might be possible to go inside.",
     "entry.activateprompt": "Use Secret Base?",  
-    "entry.relocateprompt": "You already have a secret base. Pack up and move?",
+    "entry.relocateprompt": "You already have a Secret Base. Pack up and move?",
 
     "dialogue.y": "Yes",
     "dialogue.n": "No",

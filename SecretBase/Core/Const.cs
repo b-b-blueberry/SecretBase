@@ -17,7 +17,7 @@ namespace SecretBase
 		internal const string ModId = "SecretBase";
 		internal const string BaseEntryAction = ModId + "Entry";
 		internal const string LaptopAction = ModId + "Laptop";
-		internal const string ExtraLayerId = ModId + "Stuff";
+		internal const string ExtraLayerId = ModId + "ExtraStuffLayer";
 		internal const string TilesheetId = "z_secretbase_stuff";
 		internal const string DataFile = "moddata_{0}.json";
 		internal const int DummyChestCoords = -100;

@@ -1,5 +1,4 @@
-﻿using System.Collections.Generic;
-using System.IO;
+﻿using System.IO;
 using System.Linq;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -24,7 +23,6 @@ namespace SecretBase.Editors
 		public WorldEditor(IModHelper helper)
 		{
 			_helper = helper;
-
 		}
 
 		public bool CanEdit<T>(IAssetInfo asset)
@@ -44,7 +42,9 @@ namespace SecretBase.Editors
 
 			// todo: resolve beach/beach-nightmarket inconsistency
 
-			Log.D($"Patching {count} secret bases into {name}");
+			Log.D($"Patching {count} secret bases into {name}",
+				ModEntry.Instance.Config.DebugMode);
+
 			var path = _helper.Content.GetActualAssetKey(
 				Path.Combine("Assets", "Maps", $"{Const.TilesheetId}.png"));
 			var texture = _helper.Content.Load<Texture2D>(path);

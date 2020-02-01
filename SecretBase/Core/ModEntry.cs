@@ -42,11 +42,12 @@ namespace SecretBase
 			helper.Events.GameLoop.Saved += OnSaved;
 			helper.Events.GameLoop.SaveLoaded += OnSaveLoaded;
 			helper.Events.GameLoop.Saving += OnSaving;
-			helper.Events.Player.Warped += OnWarped;
+
+			// todo: block guests from interacting with furniture in other bases
+			//helper.Events.Player.Warped += OnWarped;
 		}
 
-
-		/* Game events */
+		#region Game Events
 
 		private void OnGameLaunched(object sender, GameLaunchedEventArgs e)
 		{
@@ -94,7 +95,6 @@ namespace SecretBase
 
 		private void OnWarped(object sender, WarpedEventArgs e)
 		{
-			// todo: block guests from interacting with furniture in other bases
 			/*
 			if (_maps.Contains(e.OldLocation.Name))
 			{
@@ -106,9 +106,10 @@ namespace SecretBase
 			*/
 		}
 
-
-		/* Public methods */
+		#endregion
 		
+		#region Public Getter Methods
+
 		/// <returns>Returns whether a player meets the criteria to view the secret base entry prompts.</returns>
 		public static bool CanFarmerHaveSecretBase(Farmer who, string whichBase = null)
 		{
@@ -204,9 +205,10 @@ namespace SecretBase
 			return null;
 		}
 
+		#endregion
 
-		/* Private methods */
-		
+		#region Management Methods
+
 		/// <summary>
 		/// Patches functional return warps into the dummy properties of each secret base map file.
 		/// </summary>
@@ -315,6 +317,10 @@ namespace SecretBase
 				LaptopRootDialogue();
 		}
 
+		#endregion
+
+		#region Dialogue Methods
+
 		/// <summary>
 		/// Control flow for all question dialogues in the mod.
 		/// </summary>
@@ -411,6 +417,89 @@ namespace SecretBase
 		}
 
 		/// <summary>
+		/// Creates a hybrid dialogue box using features of multipleDialogue and questionDialogue.
+		/// A series of dialogues is presented, with the final dialogue having assigned responses.
+		/// </summary>
+		private void CreateMultipleDialogueQuestion(List<string> dialogues, List<Response> answerChoices,
+			GameLocation where, GameLocation.afterQuestionBehavior afterDialogueBehavior)
+		{
+			where.afterQuestion = afterDialogueBehavior;
+			Game1.activeClickableMenu = new MultipleDialogueQuestion(Helper, dialogues, answerChoices);
+			Game1.dialogueUp = true;
+			Game1.player.canMove = false;
+		}
+		
+		/// <summary>
+		/// This method sequences question dialogue boxes by assigning them for the next tick,
+		/// allowing for repeated calls to the afterDialogueBehavior field per location.
+		/// </summary>
+		private void OpenPackDialogueOnNextTick(object sender, UpdateTickedEventArgs e)
+		{
+			Log.D("OpenPackDialogueOnNextTick");
+			Helper.Events.GameLoop.UpdateTicked -= OpenPackDialogueOnNextTick;
+			SecretBasePackUpDialogue();
+		}
+
+		/// <summary>
+		/// Presents a confirmation dialogue box for packing up and disassociating this player's secret base.
+		/// </summary>
+		private void SecretBasePackUpDialogue()
+		{
+			var location = Game1.player.currentLocation;
+			var question = i18n.Get("laptop.packprompt");
+			var options = new List<Response>
+			{
+				new Response("packup", i18n.Get("dialogue.y")),
+				new Response("cancel", i18n.Get("dialogue.n")),
+			};
+			location.createQuestionDialogue(question, options.ToArray(), DialogueAnswers);
+		}
+
+		// todo: add laptop menu for allowed/blocked players if this farm has farmhands
+		// their name, their portrait, their base location if visited, allow/block menu
+
+		/// <summary>
+		/// Root dialogue menu for player interactions with the laptop in the secret base.
+		/// Offers base management options and item management from storage.
+		/// </summary>
+		private void LaptopRootDialogue()
+		{
+			var location = Game1.player.currentLocation;
+			var question = i18n.Get("laptop.menuprompt");
+			var options = new List<Response>();
+
+			if (GlobalStorage[Game1.player.UniqueMultiplayerID].items.Count > 0)
+				options.Add(new Response("storage", i18n.Get("laptop.storage")));
+			options.Add(new Response("packprompt", i18n.Get("laptop.packup")));
+			options.Add(new Response("cancel", i18n.Get("dialogue.cancel")));
+
+			location.createQuestionDialogue(question, options.ToArray(), DialogueAnswers);
+		}
+
+		/// <summary>
+		/// Opens a fishing chest-style grab dialogue taking from
+		/// personal global storage data into the player's inventory.
+		/// </summary>
+		private void LaptopStorageDialogue()
+		{
+			var chest = GlobalStorage[Game1.player.UniqueMultiplayerID];
+			chest.clearNulls();
+			Game1.activeClickableMenu = new ItemGrabMenu(
+				chest.items)
+			{
+				behaviorOnItemGrab = delegate (Item item, Farmer who)
+				{
+					if (item != null)
+						chest.items.Remove(item);
+				}
+			};
+		}
+
+		#endregion
+		
+		#region Secret Base Modifier Methods
+
+		/// <summary>
 		/// Marks the base closest to the player as active,
 		/// and associates it with this player in mod data.
 		/// </summary>
@@ -453,8 +542,8 @@ namespace SecretBase
 					sfx = "cut";
 					vfx = 17 * 64;
 
-					where.Map.GetLayer("Front").Tiles[(int) coords.X, (int) coords.Y] = null;
-					where.Map.GetLayer("Buildings").Tiles[(int) coords.X, (int) coords.Y + 1] = null;
+					where.Map.GetLayer("Front").Tiles[(int)coords.X, (int)coords.Y] = null;
+					where.Map.GetLayer("Buildings").Tiles[(int)coords.X, (int)coords.Y + 1] = null;
 
 					break;
 				}
@@ -512,45 +601,6 @@ namespace SecretBase
 					});
 			}
 		}
-		
-		/// <summary>
-		/// Creates a hybrid dialogue box using features of multipleDialogue and questionDialogue.
-		/// A series of dialogues is presented, with the final dialogue having assigned responses.
-		/// </summary>
-		private void CreateMultipleDialogueQuestion(List<string> dialogues, List<Response> answerChoices,
-			GameLocation where, GameLocation.afterQuestionBehavior afterDialogueBehavior)
-		{
-			where.afterQuestion = afterDialogueBehavior;
-			Game1.activeClickableMenu = new MultipleDialogueQuestion(Helper, dialogues, answerChoices);
-			Game1.dialogueUp = true;
-			Game1.player.canMove = false;
-		}
-		
-		/// <summary>
-		/// This method sequences question dialogue boxes by assigning them for the next tick,
-		/// allowing for repeated calls to the afterDialogueBehavior field per location.
-		/// </summary>
-		private void OpenPackDialogueOnNextTick(object sender, UpdateTickedEventArgs e)
-		{
-			Log.D("OpenPackDialogueOnNextTick");
-			Helper.Events.GameLoop.UpdateTicked -= OpenPackDialogueOnNextTick;
-			SecretBasePackUpDialogue();
-		}
-
-		/// <summary>
-		/// Presents a confirmation dialogue box for packing up and disassociating this player's secret base.
-		/// </summary>
-		private void SecretBasePackUpDialogue()
-		{
-			var location = Game1.player.currentLocation;
-			var question = i18n.Get("laptop.packprompt");
-			var options = new List<Response>
-			{
-				new Response("packup", i18n.Get("dialogue.y")),
-				new Response("cancel", i18n.Get("dialogue.n")),
-			};
-			location.createQuestionDialogue(question, options.ToArray(), DialogueAnswers);
-		}
 
 		/// <summary>
 		/// Returns the interior of the secret base to its default inactive state
@@ -590,54 +640,21 @@ namespace SecretBase
 				}
 			}
 			location.objects.Clear();
+
+			// todo: resolve decoratable location issues with locations added by TMXL
 			/*
 			foreach (var f in location.furniture)
 				AddToStorage(who, f);
 			location.furniture.Clear();
 			*/
+
 			// Mark the secret base as inactive, allowing it to be used by other players
 			ModState.SecretBaseOwnership.Remove(GetSecretBaseForFarmer(who));
 		}
 
-		// todo: add laptop menu for allowed/blocked players if this farm has farmhands
-		// their name, their portrait, their base location if visited, allow/block menu
+		#endregion
 
-		/// <summary>
-		/// Root dialogue menu for player interactions with the laptop in the secret base.
-		/// Offers base management options and item management from storage.
-		/// </summary>
-		private void LaptopRootDialogue()
-		{
-			var location = Game1.player.currentLocation;
-			var question = i18n.Get("laptop.menuprompt");
-			var options = new List<Response>();
-
-			if (GlobalStorage[Game1.player.UniqueMultiplayerID].items.Count > 0)
-				options.Add(new Response("storage", i18n.Get("laptop.storage")));
-			options.Add(new Response("packprompt", i18n.Get("laptop.packup")));
-			options.Add(new Response("cancel", i18n.Get("dialogue.cancel")));
-
-			location.createQuestionDialogue(question, options.ToArray(), DialogueAnswers);
-		}
-
-		/// <summary>
-		/// Opens a fishing chest-style grab dialogue taking from
-		/// personal global storage data into the player's inventory.
-		/// </summary>
-		private void LaptopStorageDialogue()
-		{
-			var chest = GlobalStorage[Game1.player.UniqueMultiplayerID];
-			chest.clearNulls();
-			Game1.activeClickableMenu = new ItemGrabMenu(
-				chest.items)
-			{
-				behaviorOnItemGrab = delegate(Item item, Farmer who)
-				{
-					if (item != null)
-						chest.items.Remove(item);
-				}
-			};
-		}
+		#region Debug Methods
 
 		/// <summary>
 		/// Add items to the global storage chest, bypassing the limit check.
@@ -724,5 +741,7 @@ namespace SecretBase
 			while(GlobalStorage[who.UniqueMultiplayerID].items.Count < count)
 				AddToStorage(who, new StardewValley.Object(random.Next(maxIndex), 1));
 		}
+
+		#endregion
 	}
 }
