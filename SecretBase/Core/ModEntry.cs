@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
 using StardewValley;
@@ -19,32 +18,124 @@ namespace SecretBase
 	/* todo:
 		linus event with introduction to opening secret bases
 		vincent dialogue with your secret base location
+		vincent event with secret base hole fixing
 	*/
+
+	// todo: reset data on return to main menu, RTM and reload keeps your world state from before
+	// todo: clear notifications on return to main menu
+	
+	// todo: add button to leave peer's secret base
 
 	public class ModEntry : Mod
 	{
-		internal static ModEntry Instance;
-		internal static ModState ModState;
-
-		internal Config Config;
 		internal ITranslationHelper i18n => Helper.Translation;
 
+		internal static ModEntry Instance { get; private set; }
+		internal static ModState ModState { get; set; }
+		internal Config Config { get; private set; }
 		internal Dictionary<long, Chest> GlobalStorage = new Dictionary<long, Chest>();
 		
+		internal static NotificationButton NotificationButton = new NotificationButton();
+		internal List<Notification> PendingNotifications
+			= new List<Notification>();
+
+		public enum BaseStatus
+		{
+			Available,
+			AvailableButNoTool,
+			AvailableButNotToFarmer,
+			AvailableButAlreadyOwnAnother,
+			OwnedBySelf,
+			OwnedByAnother,
+			EntryDenied
+		}
+
 		public override void Entry(IModHelper helper)
 		{
 			Instance = this;
 
 			Config = helper.ReadConfig<Config>();
 			
-			helper.Events.Input.ButtonReleased += OnButtonReleased;
 			helper.Events.GameLoop.GameLaunched += OnGameLaunched;
-			helper.Events.GameLoop.Saved += OnSaved;
 			helper.Events.GameLoop.SaveLoaded += OnSaveLoaded;
 			helper.Events.GameLoop.Saving += OnSaving;
+			helper.Events.GameLoop.Saved += OnSaved;
+			helper.Events.GameLoop.ReturnedToTitle += OnReturnedToTitle;
+			helper.Events.Input.ButtonReleased += OnButtonReleased;
+			helper.Events.Multiplayer.ModMessageReceived += OnModMessageReceived;
+			helper.Events.Player.Warped += OnWarped;
 
-			// todo: block guests from interacting with furniture in other bases
-			//helper.Events.Player.Warped += OnWarped;
+			if (Config.DebugMode)
+			{
+				AddConsoleCommands();
+			}
+
+			AddNotificationButton();
+		}
+
+		internal void AddNotificationButton()
+		{
+			if (Game1.onScreenMenus.Contains(NotificationButton))
+				return;
+			
+			Log.W("Adding NotificationButton");
+			Game1.onScreenMenus.Add(NotificationButton);
+		}
+
+		internal void RemoveNotificationButton()
+		{
+			if (!Game1.onScreenMenus.Contains(NotificationButton))
+				return;
+
+			Log.W("Removing NotificationButton");
+			Game1.onScreenMenus.Remove(NotificationButton);
+		}
+
+		private void AddConsoleCommands() {
+			Helper.ConsoleCommands.Add("sbsave", "Save the mod state, including all Secret Base info.",
+				(s, p) =>
+				{
+					DebugSaveState();
+				});
+			Helper.ConsoleCommands.Add("sbwarp", "Warp to your Secret Base, or a random entry if none is owned.",
+				(s, p) =>
+				{
+					if (Game1.currentLocation.Name != GetSecretBaseLocationForFarmer(Game1.player))
+						DebugWarpBase();
+					else
+						DebugWarpHome();
+				});
+			Helper.ConsoleCommands.Add("sbfill", "Fill your Global Storage with random items.",
+				(s, p) =>
+				{
+					DebugFillStorage();
+				});
+			Helper.ConsoleCommands.Add("sbempty", "Empty out your Global Storage.",
+				(s, p) =>
+				{
+					DebugClearStorage();
+				});
+			Helper.ConsoleCommands.Add("sbnotify", "Add 3 notifications to your inbox.",
+				(s, p) =>
+				{
+					DebugAddRandomNotification();
+				});
+			Helper.ConsoleCommands.Add("sbclear", "Remove all notifications from your inbox.",
+				(s, p) =>
+				{
+					PendingNotifications.Clear();
+					Log.D($"Cleared notifications: {(PendingNotifications.Count <= 0 ? "true" : "false")}");
+				});
+			Helper.ConsoleCommands.Add("sbinbox", "Bring up the Notification Menu.",
+				(s, p) =>
+				{
+					Game1.activeClickableMenu = new NotificationMenu();
+				});
+			Helper.ConsoleCommands.Add("sboutbox", "Close active menu.",
+				(s, p) =>
+				{
+					Game1.activeClickableMenu = null;
+				});
 		}
 
 		#region Game Events
@@ -69,6 +160,11 @@ namespace SecretBase
 		{
 			LoadModState();
 		}
+		
+		private void OnReturnedToTitle(object sender, ReturnedToTitleEventArgs e)
+		{
+			UnloadModState();
+		}
 
 		private void OnButtonReleased(object sender, ButtonReleasedEventArgs e)
 		{
@@ -80,47 +176,89 @@ namespace SecretBase
 			if (e.Button.IsActionButton())
 				CheckForAction();
 
-			/* Debug hotkeys */
-			if (!Config.DebugMode)
+			// todo: add a 'leave peer's secret base' prompt while in a peer's base to prevent jailing
+		}
+
+		private void SuppressInteractionButtons(object sender, ButtonPressedEventArgs e)
+		{
+			if (!e.Button.IsActionButton() && !e.Button.IsUseToolButton())
 				return;
-			if (e.Button.Equals(Config.DebugWarpBaseKey))
-				DebugWarpBase();
-			if (e.Button.Equals(Config.DebugWarpHomeKey))
-				DebugWarpHome();
-			if (e.Button.Equals(Config.DebugSaveStateKey))
-				DebugSaveState();
-			if (e.Button.Equals(Config.DebugFillStorageKey))
-				DebugFillStorage();
+
+			Helper.Input.Suppress(e.Button);
+		}
+
+		private void OnModMessageReceived(object sender, ModMessageReceivedEventArgs e)
+		{
+			if (e.FromModID != ModManifest.UniqueID || e.Type != EntryRequest.MessageType)
+				return;
+
+			var entryRequest = e.ReadAs<EntryRequest>();
+			switch (entryRequest.Request)
+			{
+				case EntryRequest.RequestCode.Requested:
+
+					break;
+
+				case EntryRequest.RequestCode.Allowed:
+					// todo: entry accepted behaviour:
+					ModState.GuestListForPeerSecretBases[e.FromPlayerID] = entryRequest;
+					break;
+
+				case EntryRequest.RequestCode.Denied:
+					// todo: entry denial behaviour:
+					ModState.GuestListForPeerSecretBases[e.FromPlayerID] = entryRequest;
+					break;
+			}
+
+			AddNewPendingNotification(entryRequest, e.FromPlayerID);
+		}
+
+		private void AddNewPendingNotification(EntryRequest entryRequest, long whomst)
+		{
+			// Ignore duplicate notifications to prevent spam
+			if (PendingNotifications.Exists(n
+				=> n.Guest == whomst
+				   && n.Request == entryRequest.Request))
+				return;
+
+			Game1.playSound("give_gift");
+			PendingNotifications.Add(new Notification(
+				entryRequest.Request,
+				entryRequest.Duration,
+				Game1.player.UniqueMultiplayerID,
+				whomst));
+			AddNotificationButton();
 		}
 
 		private void OnWarped(object sender, WarpedEventArgs e)
 		{
-			/*
-			if (_maps.Contains(e.OldLocation.Name))
+			// Reenable player actions when leaving a peer's secret base
+			if (ModConsts.BaseEntryCoordinates.ContainsKey(e.OldLocation.Name)
+			    && DoesAnyoneOwnSecretBase(e.OldLocation.Name) != null
+			    && DoesAnyoneOwnSecretBase(e.OldLocation.Name) != e.Player.UniqueMultiplayerID)
 			{
+				Helper.Events.Input.ButtonPressed -= SuppressInteractionButtons;
 			}
-			if (_maps.Contains(e.NewLocation.Name))
-			{
 
+			// Block players from actions when entering someone's secret base
+			if (ModConsts.BaseEntryCoordinates.ContainsKey(e.NewLocation.Name)
+				&& DoesAnyoneOwnSecretBase(e.NewLocation.Name) != null
+				&& DoesAnyoneOwnSecretBase(e.NewLocation.Name) != e.Player.UniqueMultiplayerID)
+			{
+				Helper.Events.Input.ButtonPressed += SuppressInteractionButtons;
 			}
-			*/
 		}
-
+		
 		#endregion
 		
-		#region Public Getter Methods
+		#region Getter Methods
 
-		/// <returns>Returns whether a player meets the criteria to view the secret base entry prompts.</returns>
-		public static bool CanFarmerHaveSecretBase(Farmer who, string whichBase = null)
+		// todo: implement this method: GetConfigMapType()
+		public static string GetConfigMapType()
 		{
-			// Players not currently holding the correct tool won't receive the activation prompt.
-			if (whichBase != null)
-				if (GetAppropriateToolForTheme(who, GetSecretBaseTheme(whichBase)) == null)
-					return false;
-
-			// todo: determine conditions before farmer can have certain interactions
-
-			return true;
+			if (!ModConsts.AcceptableMapTypes.Contains(Instance.Config.MapType))
+				Instance.Config.MapType = ModConsts.AcceptableMapTypes[0];
+			return Instance.Config.MapType;
 		}
 
 		/// <summary>
@@ -129,18 +267,18 @@ namespace SecretBase
 		/// specific visual and sound effects on use, for example.
 		/// </summary>
 		/// <returns>Returns the visual theming of a secret base.</returns>
-		public static Const.Theme GetSecretBaseTheme(string whichBase)
+		public static ModConsts.Theme GetSecretBaseTheme(string whichBase)
 		{
-			var theme = Const.Theme.Tree;
+			var theme = ModConsts.Theme.Tree;
 			
 			if (whichBase.Contains("R"))
-				theme = Const.Theme.Rock;
+				theme = ModConsts.Theme.Rock;
 			else if (whichBase.Contains("Bu"))
-				theme = Const.Theme.Bush;
+				theme = ModConsts.Theme.Bush;
 			else if (whichBase.Contains("D"))
-				theme = Const.Theme.Desert;
+				theme = ModConsts.Theme.Desert;
 			else if (whichBase.Contains("C"))
-				theme = Const.Theme.Cave;
+				theme = ModConsts.Theme.Cave;
 
 			return theme;
 		}
@@ -154,55 +292,150 @@ namespace SecretBase
 		/// <returns>Returns the location name for some secret base.</returns>
 		public static string GetSecretBaseLocationForFarmer(Farmer who)
 		{
-			return Const.BaseEntryLocations.FirstOrDefault(a => a.Key.Equals(GetSecretBaseForFarmer(who))).Value;
+			return ModConsts.BaseEntryLocations.FirstOrDefault(a => a.Key.Equals(GetSecretBaseForFarmer(who))).Value;
 		}
 
 		/// <returns>Returns the map coordinates for some secret base in a nonspecific location.</returns>
 		public static Vector2 GetSecretBaseCoordinatesForFarmer(Farmer who)
 		{
-			return Const.BaseEntryCoordinates.FirstOrDefault(a => a.Key.Equals(GetSecretBaseForFarmer(who))).Value;
+			return ModConsts.BaseEntryCoordinates.FirstOrDefault(a => a.Key.Equals(GetSecretBaseForFarmer(who))).Value;
 		}
 
 		/// <returns>Returns overworld entry coordinates for a secret base.
 		/// Coordinates provided are for the tile above the interactable tile.</returns>
 		public static Vector2 GetSecretBaseCoordinates(string whichBase)
 		{
-			return Const.BaseEntryCoordinates[whichBase];
+			return ModConsts.BaseEntryCoordinates[whichBase];
 		}
 		
 		/// <returns>Returns the name of the secret base nearest to the given coordinates.</returns>
 		public static string GetNearestSecretBase(Vector2 coords)
 		{
-			var nearbyBases = Const.BaseEntryCoordinates.Where(
-				_ => Const.BaseEntryLocations.ContainsKey(_.Key));
+			var nearbyBases = ModConsts.BaseEntryCoordinates.Where(
+				_ => ModConsts.BaseEntryLocations.ContainsKey(_.Key));
 			return nearbyBases.OrderBy(
 				_ => Math.Abs(_.Value.X - coords.X) + Math.Abs(_.Value.Y - coords.Y)).First().Key;
 		}
 
-		public static bool DoesAnyoneOwnSecretBase(string whichBase)
+		public static long? DoesAnyoneOwnSecretBase(string whichBase)
 		{
-			return ModState.SecretBaseOwnership.ContainsKey(whichBase);
+			if (ModState != null && ModState.SecretBaseOwnership.ContainsKey(whichBase))
+				return ModState.SecretBaseOwnership[whichBase];
+			return null;
 		}
 
-		public static bool DoesFarmerOwnSecretBase(Farmer who, string whichBase)
+		public static BaseStatus CanFarmerHaveSecretBase(Farmer who, string whichBase)
 		{
-			return DoesAnyoneOwnSecretBase(whichBase)
-			       && ModState.SecretBaseOwnership[whichBase] == who.UniqueMultiplayerID;
+			var status = BaseStatus.Available;
+			var owner = DoesAnyoneOwnSecretBase(whichBase);
+
+			// For currently-owned bases:
+			if (owner != null)
+			{
+				// Player is on the owner's guest list as a not-allowed guest
+				if (owner.Value != who.UniqueMultiplayerID
+					&& ModState != null
+					&& ModState.GuestListForPeerSecretBases.ContainsKey(owner.Value)
+					&& ModState.GuestListForPeerSecretBases[owner.Value].Request != EntryRequest.RequestCode.Allowed)
+					status = BaseStatus.EntryDenied;
+				// Player isn't yet on the owner's guest list
+				else
+					status = owner.Value == who.UniqueMultiplayerID
+						? BaseStatus.OwnedBySelf
+						: BaseStatus.OwnedByAnother;
+			}
+
+			// For available bases:
+			else
+			{
+				// Player without a base
+				if (GetSecretBaseForFarmer(who) == null)
+				{
+					// Player can claim bases
+					if (Instance.Config.DebugCanClaimSecretBases ||
+					    ModState != null
+					    && ModState.FarmersWhoCanClaimSecretBases.ContainsKey(who.UniqueMultiplayerID)
+					    && ModState.FarmersWhoCanClaimSecretBases[who.UniqueMultiplayerID])
+					{
+						status = BaseStatus.Available;
+					}
+					// Player can't yet claim bases
+					else
+					{
+						status = BaseStatus.AvailableButNotToFarmer;
+					}
+				}
+				// Player doesn't have the required tool in their inventory
+				else if (GetAppropriateToolForTheme(who, GetSecretBaseTheme(whichBase)) == null)
+				{
+					status = BaseStatus.AvailableButNoTool;
+				}
+			}
+
+			Log.D("Secret Base status key: " +
+			"\n0 - Available," +
+			"\n1 - AvailableButNoTool," +
+			"\n2 - AvailableButNotToFarmer," +
+			"\n3 - AvailableButAlreadyOwnAnother," +
+			"\n4 - OwnedBySelf," +
+			"\n5 - OwnedByAnother," +
+			"\n6 - EntryDenied");
+			Log.W($"Status: {status}");
+
+			return status;
+		}
+
+		public static bool CanFarmerFixHoles(Farmer who)
+		{
+			return Instance.Config.DebugCanFixHoles
+			       || ModState != null
+			       && ModState.FarmersWhoCanFixHoles.ContainsKey(who.UniqueMultiplayerID)
+			       && ModState.FarmersWhoCanFixHoles[who.UniqueMultiplayerID];
+		}
+
+		public static bool ShouldFarmersSecretBaseHolesBeFixed(Farmer who)
+		{
+			return ModState != null
+			       && ModState.FarmersWithFixedHoles.ContainsKey(who.UniqueMultiplayerID)
+			       && ModState.FarmersWithFixedHoles[who.UniqueMultiplayerID];
+		}
+
+		public static void ClearSecretBaseFromFarmer(Farmer who)
+		{
+			// Mark the secret base as inactive, allowing it to be used by other players
+			ModState.SecretBaseOwnership.Remove(GetSecretBaseForFarmer(who));
+
+			// Mark base holes as unfixed
+			if (ShouldFarmersSecretBaseHolesBeFixed(who))
+				ModState.FarmersWithFixedHoles[who.UniqueMultiplayerID] = false;
 		}
 
 		/// <summary>
 		/// Different tools are used to interact with the entries of secret bases
 		/// from different visual themes.
 		/// </summary>
-		/// <returns>Returns the tool suited to this theme, if it exists.</returns>
-		public static Item GetAppropriateToolForTheme(Farmer who, Const.Theme whichTheme)
+		/// <returns>Returns the tool suited to this theme.</returns>
+		public static Item GetAppropriateToolForTheme(Farmer who, ModConsts.Theme whichTheme)
 		{
-			if (whichTheme == Const.Theme.Tree || whichTheme == Const.Theme.Bush)
+			// Scythe: Tree, Bush
+			if (whichTheme == ModConsts.Theme.Tree || whichTheme == ModConsts.Theme.Bush)
 				return who.Items.FirstOrDefault(item =>
 					item is MeleeWeapon weapon && weapon.InitialParentTileIndex == 47);
-			if (whichTheme == Const.Theme.Rock || whichTheme == Const.Theme.Cave || whichTheme == Const.Theme.Desert)
+			// Pick: Rock, Cave, Desert
+			if (whichTheme == ModConsts.Theme.Rock || whichTheme == ModConsts.Theme.Cave || whichTheme == ModConsts.Theme.Desert)
 				return who.getToolFromName("Pickaxe");
 			return null;
+		}
+
+		public static void SendEntryRequestToFarmer(Farmer who)
+		{
+			var message = new EntryRequest(
+				EntryRequest.RequestCode.Requested,
+				EntryRequest.DurationCode.None);
+			Instance.Helper.Multiplayer.SendMessage(
+				message, EntryRequest.MessageType,
+				new [] { Instance.ModManifest.UniqueID },
+				new [] { who.UniqueMultiplayerID });
 		}
 
 		#endregion
@@ -214,12 +447,12 @@ namespace SecretBase
 		/// </summary>
 		private void AddReturnWarps()
 		{
-			foreach (var location in Game1.locations.Where(_ => _.Name.StartsWith(Const.ModId)))
+			foreach (var location in Game1.locations.Where(_ => _.Name.StartsWith(ModConsts.ModId)))
 			{
 				// Update return warps
 				var name = location.Name;
 				var warp = ((string)location.Map.Properties["Warp"]).Split(' ');
-				warp[2] = Const.BaseEntryLocations[name];
+				warp[2] = ModConsts.BaseEntryLocations[name];
 				warp[3] = GetSecretBaseCoordinates(name).X.ToString();
 				warp[4] = (GetSecretBaseCoordinates(name).Y + 2f).ToString();
 				location.Map.Properties["Warp"] = string.Join(" ", warp);
@@ -230,7 +463,7 @@ namespace SecretBase
 		/// <returns>Returns the filename of the mod data JSON for this savegame.</returns>
 		private string GetDataFile()
 		{
-			return Path.Combine("data", string.Format(Const.DataFile, Constants.SaveFolderName));
+			return Path.Combine("data", string.Format(ModConsts.DataFile, Constants.SaveFolderName));
 		}
 
 		/// <summary>
@@ -238,42 +471,80 @@ namespace SecretBase
 		/// </summary>
 		private void LoadModState()
 		{
-			var farm = Game1.getLocationFromName("Farm"); // hehehehe
 			var datafile = GetDataFile();
 			ModState = Helper.Data.ReadJsonFile<ModState>(datafile) ?? new ModState();
 			
 			// Repopulate object storage
-			if (GlobalStorage?.Count == 0)
+			foreach (var farmer in Game1.getAllFarmers())
 			{
-				foreach (var player in Game1.getAllFarmers())
-				{
-					var coords = Vector2.Zero;
-
-					if (GlobalStorage.ContainsKey(player.UniqueMultiplayerID))
-						// Use existing coordinates for chests already tied to the player
-						coords = GlobalStorage[player.UniqueMultiplayerID].TileLocation;
-					else
-						// Use next coordinates across for chests being tied to new players
-						coords = new Vector2(
-							Const.DummyChestCoords + GlobalStorage.Count, 
-							Const.DummyChestCoords);
-
-					if (farm.Objects.ContainsKey(coords))
-					{
-						// Populate with existing chests
-						var dummyChest = (Chest)farm.getObjectAtTile((int)coords.X, (int)coords.Y);
-						GlobalStorage.Add(player.UniqueMultiplayerID, dummyChest);
-					}
-					else
-					{
-						// Populate with new chests
-						var dummyChest = new Chest(
-							playerChest: true, tileLocation: coords);
-						farm.Objects.Add(coords, dummyChest);
-						GlobalStorage.Add(player.UniqueMultiplayerID, dummyChest);
-					}
-				}
+				CreateGlobalStorageForFarmer(farmer);
 			}
+		}
+
+		private void UnloadModState()
+		{
+			ModState = null;
+		}
+
+		private Chest GetGlobalStorageForFarmer(Farmer who)
+		{
+			Log.D($"GetGlobalStorage for {who.Name}: ");
+			
+			Chest chest = null;
+			if (GlobalStorage.ContainsKey(who.UniqueMultiplayerID))
+			{
+				chest = GlobalStorage[who.UniqueMultiplayerID];
+			} else {
+				CreateGlobalStorageForFarmer(who);
+			}
+
+			Log.D($"{chest.items.Count} items, at {chest.TileLocation.ToString()}");
+			
+			return chest;
+		}
+
+		private Chest CreateGlobalStorageForFarmer(Farmer who)
+		{
+			Log.D($"CreateGlobalStorage for {who.Name}");
+
+			Vector2 coords;
+			var farm = Game1.getLocationFromName("Farm"); // hehehehe
+
+			if (GlobalStorage.ContainsKey(who.UniqueMultiplayerID))
+			{
+				// Use existing coordinates for chests already tied to the player
+				coords = GlobalStorage[who.UniqueMultiplayerID].TileLocation;
+
+				Log.D($"{who.Name} exists in GlobalStorage, using TileLocation for chest at {coords.ToString()}");
+			} else {
+				// Use next coordinates across for chests being tied to new players
+				coords = new Vector2(
+					ModConsts.DummyChestCoords + GlobalStorage.Count, 
+					ModConsts.DummyChestCoords);
+
+				Log.D($"{who.Name} doesn't have a chest in GlobalStorage, using new TileLocation for {coords.ToString()}");
+			}
+
+			if (farm.Objects.ContainsKey(coords))
+			{
+				Log.D($"Chest at {coords.ToString()} exists in world, reading to GlobalStorage");
+
+				// Populate with existing chests
+				var dummyChest = (Chest)farm.getObjectAtTile((int)coords.X, (int)coords.Y);
+				GlobalStorage.Add(who.UniqueMultiplayerID, dummyChest);
+			}
+			else
+			{
+				Log.D($"Adding chest to {coords.ToString()} for GlobalStorage");
+
+				// Populate with new chests
+				var dummyChest = new Chest(
+					playerChest: true, tileLocation: coords);
+				farm.Objects.Add(coords, dummyChest);
+				GlobalStorage.Add(who.UniqueMultiplayerID, dummyChest);
+			}
+
+			return GlobalStorage[who.UniqueMultiplayerID];
 		}
 
 		/// <summary>
@@ -299,49 +570,96 @@ namespace SecretBase
 			var tile = Game1.currentLocation.map.GetLayer("Buildings").PickTile(new Location(
 				(int)grabTile.X * Game1.tileSize, (int)grabTile.Y * Game1.tileSize), Game1.viewport.Size);
 
-			var action = (PropertyValue)null;
-			tile?.Properties.TryGetValue("Action", out action);
-			if (action == null)
+			var actionProperty = (PropertyValue)null;
+			tile?.Properties.TryGetValue("Action", out actionProperty);
+			if (actionProperty == null)
 				return;
 
-			var strArray = ((string)action).Split(' ');
+			var strArray = ((string)actionProperty).Split(' ');
+			var action = strArray[0];
 			var args = new string[strArray.Length - 1];
 			Array.Copy(strArray, 1, args, 0, args.Length);
 
-			if (strArray[0].Equals(Const.BaseEntryAction))
-				// Actions on each Base Entry building will open a contextual dialogue tree
-				SecretBaseEntryDialogue(Game1.player, grabTile);
-
-			else if (strArray[0].Equals(Const.LaptopAction))
-				// Actions on the Laptop building will open a dialogue tree
-				LaptopRootDialogue();
+			switch (action)
+			{
+				// Actions on each Base Entry building
+				case ModConsts.BaseEntryAction:
+					SecretBaseEntryDialogue(Game1.player, grabTile);
+					break;
+				// Actions on the Laptop building
+				case ModConsts.LaptopAction:
+					LaptopRootDialogue();
+					break;
+				// Actions on the Hole buildings
+				case ModConsts.HoleAction:
+					SecretBaseHoleFixDialogue(Game1.player);
+					break;
+			}
 		}
 
 		#endregion
 
 		#region Dialogue Methods
+		
+		private void CreateInspectDialogue(string dialogue)
+		{
+			Game1.drawDialogueNoTyping(dialogue);
+		}
+
+		private void CreateQuestionDialogue(GameLocation location, string question, List<Response> answers)
+		{
+			location.createQuestionDialogue(question, answers.ToArray(), DialogueAnswers);
+		}
+
+		/// <summary>
+		/// Creates a hybrid dialogue box using features of inspectDialogue and questionDialogue.
+		/// A series of dialogues is presented, with the final dialogue having assigned responses.
+		/// </summary>
+		private void CreateInspectThenQuestionDialogue(GameLocation location, List<string> dialogues, List<Response> answerChoices)
+		{
+			location.afterQuestion = DialogueAnswers;
+			Game1.activeClickableMenu = new MultipleDialogueQuestion(Helper, dialogues, answerChoices);
+			Game1.dialogueUp = true;
+			Game1.player.canMove = false;
+		}
 
 		/// <summary>
 		/// Control flow for all question dialogues in the mod.
 		/// </summary>
+		/// <param name="who">Player.</param>
 		/// <param name="answer">Player's answer to the last question dialogue.</param>
 		private void DialogueAnswers(Farmer who, string answer)
 		{
 			var ans = answer.Split(' ')[0];
-			
-			// Secret base entry dialogue
-			if (ans.Equals("activate"))
-				SecretBaseActivate(who);
 
-			// Laptop root dialogue
-			else if (ans.Equals("storage"))
-				LaptopStorageDialogue();
-			else if (ans.Equals("packprompt"))
-				Helper.Events.GameLoop.UpdateTicked += OpenPackDialogueOnNextTick;
+			switch (ans)
+			{
+				// Secret base entry dialogue
+				case "activate":
+					SecretBaseActivate(who);
+					break;
+					
+				// Laptop root dialogue
+				case "storage":
+					LaptopStorageDialogue();
+					break;
+					
+				// Laptop packup dialogue
+				case "packprompt":
+					Helper.Events.GameLoop.UpdateTicked += OpenPackDialogueOnNextTick;
+					break;
+					
+				case "packup":
+					SecretBasePackUp(who);
+					break;
+					
+				// Secret base hole fix dialogue
+				case "fixhole":
+					Game1.globalFadeToBlack(fadedForBridgeFix);
+					break;
 
-			// Laptop packup dialogue
-			else if (ans.Equals("packup"))
-				SecretBasePackUp(who);
+				// todo: complete for ModMessage/ModNotification values for request/allow/deny once/today/always
+			}
 		}
 
 		/// <summary>
@@ -354,22 +672,17 @@ namespace SecretBase
 			var whichBase = GetNearestSecretBase(actionCoords);
 			var theme = GetSecretBaseTheme(whichBase);
 			
-			if (DoesFarmerOwnSecretBase(who, whichBase))
+			if (DoesAnyoneOwnSecretBase(whichBase) == who.UniqueMultiplayerID)
 			{
-				// todo: play entry sound effect for each secret base theme
-				var sfx = "stairsdown";
-				//if (theme == Const.Theme.Tree)
-				//	sfx = "leafrustle";
-				// . . .
-				location.playSound(sfx);
+				location.playSound("stairsdown");
 
-				// Warp the player inside the secret base.
+				// Warp the player inside the secret base
 				var dest = ((string)Game1.getLocationFromName(whichBase).Map.Properties["Warp"])
 					.Split(' ');
 				who.warpFarmer(new Warp(0, 0, whichBase, 
 					int.Parse(dest[0]), int.Parse(dest[1]) - 1, false));
 			}
-			else if (DoesAnyoneOwnSecretBase(whichBase))
+			else if (DoesAnyoneOwnSecretBase(whichBase) != null)
 			{
 				// todo: if this base already owned, offer entry confirm/deny to the owner
 				//		(just once/always/not today/never
@@ -378,57 +691,52 @@ namespace SecretBase
 			else
 			{
 				// Popup an inspection dialogue for unowned bases deciding on a question dialogue
-				var dialogue = new List<string>{ i18n.Get("entry.treeprompt") };
+				var dialogue = new List<string>{ i18n.Get("entry.tree_inspect") };
 				var options = new List<Response>();
 
-				if (theme == Const.Theme.Rock || theme == Const.Theme.Desert || theme == Const.Theme.Cave)
-					dialogue[0] = i18n.Get("entry.caveprompt");
-				else if (theme == Const.Theme.Bush)
-					dialogue[0] = i18n.Get("entry.bushprompt");
+				if (theme == ModConsts.Theme.Rock || theme == ModConsts.Theme.Desert || theme == ModConsts.Theme.Cave)
+					dialogue[0] = i18n.Get("entry.cave_inspect");
+				else if (theme == ModConsts.Theme.Bush)
+					dialogue[0] = i18n.Get("entry.bush_inspect");
 
-				if (GetSecretBaseForFarmer(who) == null)
+				switch (CanFarmerHaveSecretBase(who, whichBase))
 				{
-					// Prompt to take control of this base
-					if (CanFarmerHaveSecretBase(who, whichBase))
-					{
-						dialogue.Add(i18n.Get("entry.activateprompt"));
-						options.Add(new Response("activate", i18n.Get("dialogue.y")));
-						options.Add(new Response("cancel", i18n.Get("dialogue.n")));
-						CreateMultipleDialogueQuestion(dialogue, options, location, DialogueAnswers);
-					}
-				}
-				else
-				{
-					// Prompt to abandon current base and take control
-					if (CanFarmerHaveSecretBase(who, whichBase))
-					{
-						dialogue.Add(i18n.Get("entry.relocateprompt"));
-						options.Add(new Response("packprompt", i18n.Get("dialogue.y")));
-						options.Add(new Response("cancel", i18n.Get("dialogue.n")));
-						CreateMultipleDialogueQuestion(dialogue, options, location, DialogueAnswers);
-					}
-					else
-					{
+					case BaseStatus.Available:
+						// Prompt to take control of this base
+						dialogue.Add(i18n.Get("entry.activate_prompt"));
+						options.Add(new Response("activate", i18n.Get("dialogue.yes_option")));
+						options.Add(new Response("cancel", i18n.Get("dialogue.no_option")));
+						break;
+
+					case BaseStatus.AvailableButNoTool:
+					case BaseStatus.AvailableButNotToFarmer:
 						// Offer no prompt, only an inspection dialogue
-						Game1.drawDialogueNoTyping(dialogue[0]);
-					}
+						CreateInspectDialogue(dialogue[0]);
+						break;
+
+					case BaseStatus.AvailableButAlreadyOwnAnother:
+						// Prompt to abandon current base and take control
+						dialogue.Add(i18n.Get("entry.deactivate_prompt"));
+						options.Add(new Response("packprompt", i18n.Get("dialogue.yes_option")));
+						options.Add(new Response("cancel", i18n.Get("dialogue.no_option")));
+						CreateInspectThenQuestionDialogue(location, dialogue, options);
+						break;
+
+					case BaseStatus.EntryDenied:
+						// Show a unique inspection dialogue
+						dialogue[0] = i18n.Get("entry.denied_inspect");
+						CreateInspectDialogue(dialogue[0]);
+						break;
+
+					case BaseStatus.OwnedByAnother:
+						break;
+
+					case BaseStatus.OwnedBySelf:
+						break;
 				}
 			}
 		}
 
-		/// <summary>
-		/// Creates a hybrid dialogue box using features of multipleDialogue and questionDialogue.
-		/// A series of dialogues is presented, with the final dialogue having assigned responses.
-		/// </summary>
-		private void CreateMultipleDialogueQuestion(List<string> dialogues, List<Response> answerChoices,
-			GameLocation where, GameLocation.afterQuestionBehavior afterDialogueBehavior)
-		{
-			where.afterQuestion = afterDialogueBehavior;
-			Game1.activeClickableMenu = new MultipleDialogueQuestion(Helper, dialogues, answerChoices);
-			Game1.dialogueUp = true;
-			Game1.player.canMove = false;
-		}
-		
 		/// <summary>
 		/// This method sequences question dialogue boxes by assigning them for the next tick,
 		/// allowing for repeated calls to the afterDialogueBehavior field per location.
@@ -446,13 +754,13 @@ namespace SecretBase
 		private void SecretBasePackUpDialogue()
 		{
 			var location = Game1.player.currentLocation;
-			var question = i18n.Get("laptop.packprompt");
-			var options = new List<Response>
+			var question = i18n.Get("laptop.pack_prompt");
+			var answers = new List<Response>
 			{
-				new Response("packup", i18n.Get("dialogue.y")),
-				new Response("cancel", i18n.Get("dialogue.n")),
+				new Response("packup", i18n.Get("dialogue.yes_option")),
+				new Response("cancel", i18n.Get("dialogue.no_option")),
 			};
-			location.createQuestionDialogue(question, options.ToArray(), DialogueAnswers);
+			CreateQuestionDialogue(location, question, answers);
 		}
 
 		// todo: add laptop menu for allowed/blocked players if this farm has farmhands
@@ -465,15 +773,15 @@ namespace SecretBase
 		private void LaptopRootDialogue()
 		{
 			var location = Game1.player.currentLocation;
-			var question = i18n.Get("laptop.menuprompt");
-			var options = new List<Response>();
+			var question = i18n.Get("laptop.menu_prompt");
+			var answers = new List<Response>();
 
-			if (GlobalStorage[Game1.player.UniqueMultiplayerID].items.Count > 0)
-				options.Add(new Response("storage", i18n.Get("laptop.storage")));
-			options.Add(new Response("packprompt", i18n.Get("laptop.packup")));
-			options.Add(new Response("cancel", i18n.Get("dialogue.cancel")));
-
-			location.createQuestionDialogue(question, options.ToArray(), DialogueAnswers);
+			if (GetGlobalStorageForFarmer(Game1.player).items.Count > 0)
+				answers.Add(new Response("storage", i18n.Get("laptop.storage_option")));
+			answers.Add(new Response("packprompt", i18n.Get("laptop.pack_option")));
+			answers.Add(new Response("cancel", i18n.Get("dialogue.cancel_option")));
+			
+			CreateQuestionDialogue(location, question, answers);
 		}
 
 		/// <summary>
@@ -495,6 +803,32 @@ namespace SecretBase
 			};
 		}
 
+		/// <summary>
+		/// Inspects a hole in the floor of some secret bases.
+		/// May offer the player a prompt to fix it, removing the obstruction.
+		/// </summary>
+		private void SecretBaseHoleFixDialogue(Farmer who)
+		{
+			var location = Game1.player.currentLocation;
+			
+			var dialogue = new List<string>{ i18n.Get("hole.fix_inspect") };
+			var options = new List<Response>();
+
+			if (CanFarmerFixHoles(who))
+			{
+				// Offer a prompt to fix the obstructive holes in some secret bases
+				dialogue.Add(i18n.Get("hole.fix_prompt"));
+				options.Add(new Response("fixhole", i18n.Get("dialogue.yes_option")));
+				options.Add(new Response("cancel", i18n.Get("dialogue.no_option")));
+				CreateInspectThenQuestionDialogue(location, dialogue, options);
+			}
+			else
+			{
+				// Offer no prompt, only an inspection dialogue
+				CreateInspectDialogue(dialogue[0]);
+			}
+		}
+
 		#endregion
 		
 		#region Secret Base Modifier Methods
@@ -505,9 +839,17 @@ namespace SecretBase
 		/// </summary>
 		private void SecretBaseActivate(Farmer who)
 		{
+			var uid = who.UniqueMultiplayerID;
 			var nearestBase = GetNearestSecretBase(who.getTileLocation());
 
-			ModState.SecretBaseOwnership[nearestBase] = who.UniqueMultiplayerID;
+			// Add any missing entries to mod state
+			if (!ModState.FarmersWhoCanFixHoles.ContainsKey(uid))
+				ModState.FarmersWhoCanFixHoles[uid] = false;
+			if (!ModState.FarmersWithFixedHoles.ContainsKey(uid))
+				ModState.FarmersWithFixedHoles[uid] = false;
+
+			// Activate
+			ModState.SecretBaseOwnership[nearestBase] = uid;
 			SecretBaseActivationFx(who, nearestBase);
 		}
 
@@ -537,7 +879,7 @@ namespace SecretBase
 
 			switch (theme)
 			{
-				case Const.Theme.Tree:
+				case ModConsts.Theme.Tree:
 				{
 					sfx = "cut";
 					vfx = 17 * 64;
@@ -547,29 +889,28 @@ namespace SecretBase
 
 					break;
 				}
-				case Const.Theme.Rock:
-				case Const.Theme.Desert:
-				case Const.Theme.Cave:
+				case ModConsts.Theme.Rock:
+				case ModConsts.Theme.Desert:
+				case ModConsts.Theme.Cave:
 				{
 					sfx = "boulderBreak";
 					vfx = 5 * 64;
 
-					where.Map.GetLayer(Const.ExtraLayerId).Tiles[(int)coords.X, (int)coords.Y] = null;
-					where.Map.GetLayer(Const.ExtraLayerId).Tiles[(int)coords.X, (int)coords.Y + 1] = null;
+					where.Map.GetLayer(ModConsts.ExtraLayerId).Tiles[(int)coords.X, (int)coords.Y] = null;
+					where.Map.GetLayer(ModConsts.ExtraLayerId).Tiles[(int)coords.X, (int)coords.Y + 1] = null;
 
 					break;
 				}
-				case Const.Theme.Bush:
+				case ModConsts.Theme.Bush:
 				{
 					sfx = "leafrustle";
 					vfx = 17 * 64;
 
-					where.Map.GetLayer(Const.ExtraLayerId).Tiles[(int)coords.X, (int)coords.Y] = null;
-					if (where.Map.GetLayer(Const.ExtraLayerId).Tiles[(int)coords.X, (int)coords.Y + 1] != null)
-						where.Map.GetLayer(Const.ExtraLayerId).Tiles[(int)coords.X, (int)coords.Y + 1] = null;
+					where.Map.GetLayer(ModConsts.ExtraLayerId).Tiles[(int)coords.X, (int)coords.Y] = null;
+					if (where.Map.GetLayer(ModConsts.ExtraLayerId).Tiles[(int)coords.X, (int)coords.Y + 1] != null)
+						where.Map.GetLayer(ModConsts.ExtraLayerId).Tiles[(int)coords.X, (int)coords.Y + 1] = null;
 					else
 						where.Map.GetLayer("Buildings").Tiles[(int)coords.X, (int)coords.Y + 1] = null;
-
 					break;
 				}
 			}
@@ -609,19 +950,27 @@ namespace SecretBase
 		/// </summary>
 		private void SecretBasePackUp(Farmer who)
 		{
-			var location = Game1.getLocationFromName(GetSecretBaseForFarmer(who));
-			var coords = GetSecretBaseCoordinates(location.Name);
+			var whichBase = GetSecretBaseForFarmer(who);
+			if (whichBase == null)
+			{
+				Log.E("Farmer somehow attempting to pack up a secret base without owning one.");
+				return;
+			}
+			var location = Game1.getLocationFromName(whichBase);
+			var coords = GetSecretBaseCoordinates(whichBase);
 
-			Log.D($"Packing up {location.Name}");
+			Log.D($"Packing up {location.Name}",
+				Config.DebugMode);
 
 			// Invalidate the base entry map cache to remove the activated sprite
-			Log.D($@"Invalidating cache for Maps/{location.Name}");
+			Log.D($@"Invalidating cache for Maps/{location.Name}",
+				Config.DebugMode);
 			Helper.Content.InvalidateCache($@"Maps/{location.Name}");
 
 			// Evict all players from the secret base
 			foreach (var player in Game1.getAllFarmers().Where(_ => _.currentLocation.Equals(location)))
 				player.warpFarmer(new Warp(0, 0,
-					Const.BaseEntryLocations[location.Name],
+					ModConsts.BaseEntryLocations[location.Name],
 					(int)coords.X,
 					(int)coords.Y + 2,
 					false));
@@ -648,8 +997,98 @@ namespace SecretBase
 			location.furniture.Clear();
 			*/
 
-			// Mark the secret base as inactive, allowing it to be used by other players
-			ModState.SecretBaseOwnership.Remove(GetSecretBaseForFarmer(who));
+			ClearSecretBaseFromFarmer(who);
+		}
+
+		/// <summary>
+		/// Replaces obstructions in a secret base with non-obstructive pathable tiles.
+		/// </summary>
+		internal static void SecretBaseFixHoles(Farmer who, GameLocation location)
+		{
+			// Ensure farmer is marked as able to fix holes
+			if (!CanFarmerFixHoles(who))
+				ModState.FarmersWhoCanFixHoles[who.UniqueMultiplayerID] = true;
+
+			// Mark the holes in the farmer's base as fixed
+			if (!ShouldFarmersSecretBaseHolesBeFixed(who))
+				ModState.FarmersWithFixedHoles[who.UniqueMultiplayerID] = true;
+
+			var holeList = new List<Microsoft.Xna.Framework.Rectangle>();
+			switch (location.Name)
+			{
+				case "SecretBaseTree3":
+					holeList.Add(new Microsoft.Xna.Framework.Rectangle(4, 10, 2, 3));
+					holeList.Add(new Microsoft.Xna.Framework.Rectangle(13, 11, 2, 3));
+					break;
+				case "SecretBaseDesert2":
+					holeList.Add(new Microsoft.Xna.Framework.Rectangle(12, 7, 3, 2));
+					break;
+			}
+			
+			location.updateMap();
+
+			var tilesheetName = ModConsts.IndoorsStuffTilesheetId;
+			var tilesheet = location.Map.GetTileSheet(tilesheetName);
+			int whichTileSheet = -1;
+			if (tilesheet != null)
+			{
+				for (whichTileSheet = location.Map.TileSheets.Count - 1; whichTileSheet > 0; --whichTileSheet)
+				{
+					if (location.Map.TileSheets[whichTileSheet].Id == tilesheet.Id)
+					{
+						break;
+					}
+				}
+			}
+
+			if (tilesheet == null || whichTileSheet < 0 || location.Map.TileSheets[whichTileSheet].Id != tilesheet.Id)
+			{
+				Log.E($"Failed to fetch the interiors tilesheet '{tilesheetName}'.");
+				return;
+			}
+
+			foreach (var hole in holeList)
+			{
+				var plank = new Microsoft.Xna.Framework.Rectangle(
+					hole.Width > hole.Height ? 0 : 3, 4, hole.Width, hole.Height);
+				var plankIndex = tilesheet.SheetWidth * plank.Y + plank.X;
+
+				for (var y = 0; y < hole.Height; ++y)
+				{
+					for (var x = 0; x < hole.Width; ++x)
+					{
+						var tileX = hole.X + x;
+						var tileY = hole.Y + y;
+						var tileIndex = plankIndex + tilesheet.SheetWidth * y + x;
+						var layer = "Buildings";
+
+						Log.D($"location.Name={location.Name} layer={layer} plank={plank} whichTileSheet={whichTileSheet} "
+						      + $"tileIndex={tileIndex} tileX={tileX} tileY={tileY}");
+
+						location.setMapTile(tileX, tileY, tileIndex, layer, null, whichTileSheet);
+					}
+				}
+			}
+		}
+		
+		public void doneWithBridgeFix()
+		{
+			Game1.globalFadeToClear();
+			Game1.viewportFreeze = false;
+		}
+
+		public void fadedForBridgeFix()
+		{
+			DelayedAction.playSoundAfterDelay("crafting", 1000);
+			DelayedAction.playSoundAfterDelay("crafting", 1500);
+			DelayedAction.playSoundAfterDelay("crafting", 2000);
+			DelayedAction.playSoundAfterDelay("crafting", 2500);
+			DelayedAction.playSoundAfterDelay("axchop", 3000);
+			DelayedAction.playSoundAfterDelay("Ship", 3200);
+			Game1.viewportFreeze = true;
+			Game1.viewport.X = -10000;
+			Game1.pauseThenDoFunction(4000, doneWithBridgeFix);
+			SecretBaseFixHoles(Game1.player, Game1.player.currentLocation);
 		}
 
 		#endregion
@@ -685,19 +1124,19 @@ namespace SecretBase
 		private void DebugWarpBase()
 		{
 			var who = Game1.player;
-			var locations = Game1.locations.Where(_ => _.Name.StartsWith(Const.ModId)).ToArray();
+			var locations = Game1.locations.Where(_ => _.Name.StartsWith(ModConsts.ModId)).ToArray();
 			var names = new string[locations.Length - 1];
 			for (var i = 0; i < names.Length; ++i)
 				names[i] = locations[i].Name;
 			var whichBase = names[new Random().Next(names.Length - 1)];
-			var where = Const.BaseEntryLocations[whichBase];
-			var coords = Const.BaseEntryCoordinates[whichBase];
+			var where = ModConsts.BaseEntryLocations[whichBase];
+			var coords = ModConsts.BaseEntryCoordinates[whichBase];
 
 			whichBase = GetSecretBaseForFarmer(who);
 			if (whichBase != null)
 			{
-				where = Const.BaseEntryLocations[whichBase];
-				coords = Const.BaseEntryCoordinates[whichBase];
+				where = ModConsts.BaseEntryLocations[whichBase];
+				coords = ModConsts.BaseEntryCoordinates[whichBase];
 			}
 
 			Log.D($"Warped {who.Name} to {where} at {coords.X}, {coords.Y}");
@@ -732,14 +1171,41 @@ namespace SecretBase
 		private void DebugFillStorage()
 		{
 			var who = Game1.player;
-			var random = new Random();
+			var chest = GlobalStorage[who.UniqueMultiplayerID];
 			var maxIndex = Game1.objectInformation.Count - 1;
 			var count = 50;
 
-			Log.D($"Populating {who.Name}'s storage with {count} items.");
+			while(chest.items.Count < count)
+				AddToStorage(who, new StardewValley.Object(Game1.random.Next(maxIndex), 1));
 
-			while(GlobalStorage[who.UniqueMultiplayerID].items.Count < count)
-				AddToStorage(who, new StardewValley.Object(random.Next(maxIndex), 1));
+			var msg = $"Filled {who.Name}'s storage: {chest.items.Count} items.";
+			Log.D(msg);
+			Game1.showGlobalMessage(msg);
+		}
+
+		private void DebugClearStorage()
+		{
+			var who = Game1.player;
+			var chest = GlobalStorage[who.UniqueMultiplayerID];
+			chest.items.Clear();
+			chest.clearNulls();
+
+			var msg = $"Cleared storage: {chest.items.Count} items.";
+			Log.D(msg);
+			Game1.showGlobalMessage(msg);
+		}
+
+		private void DebugAddRandomNotification()
+		{
+			var count = PendingNotifications.Count;
+
+			var farmer = Game1.player.UniqueMultiplayerID;
+			AddNewPendingNotification(new EntryRequest(EntryRequest.RequestCode.Allowed, EntryRequest.DurationCode.Once), farmer);
+			AddNewPendingNotification(new EntryRequest(EntryRequest.RequestCode.Denied, EntryRequest.DurationCode.Today), farmer);
+			AddNewPendingNotification(new EntryRequest(EntryRequest.RequestCode.Allowed, EntryRequest.DurationCode.Always), farmer);
+			AddNewPendingNotification(new EntryRequest(EntryRequest.RequestCode.Requested, EntryRequest.DurationCode.None), farmer);
+
+			Log.D($"Added notifications: {count} => {PendingNotifications.Count}");
 		}
 
 		#endregion

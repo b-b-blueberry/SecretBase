@@ -1,15 +1,15 @@
 ﻿{
-    "Name": "Secret Base",
-    "Author": "blueberry",
-    "Version": "1.0.0",
-    "Description": "Secret bases scattered around the overworld of Stardew Valley",
-    "UniqueID": "blueberry.SecretBase",
-    "EntryDll": "SecretBase.dll",
-    "MinimumApiVersion": "2.11",
-    "UpdateKeys": [ "Nexus:5305" ],
-    "Dependencies": [
-        {
-            "UniqueID": "blueberry.SecretBase.Locations"
-        }
-    ]
+  "Name": "Secret Base",
+  "Author": "blueberry",
+  "Version": "1.0.0",
+  "Description": "Secret bases scattered around the overworld of Stardew Valley",
+  "UniqueID": "blueberry.SecretBase",
+  "EntryDll": "SecretBase.dll",
+  "MinimumApiVersion": "2.11",
+  "UpdateKeys": [ "Nexus:5305" ],
+  "Dependencies": [
+    {
+      "UniqueID": "Platonymous.Toolkit"
+    }
+  ]
 }

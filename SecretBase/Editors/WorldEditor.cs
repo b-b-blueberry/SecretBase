@@ -1,25 +1,27 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 using System.Linq;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using Rectangle = Microsoft.Xna.Framework.Rectangle;
 
 using StardewValley;
 using StardewModdingAPI;
 
 using xTile;
 using xTile.Dimensions;
-using xTile.Display;
 using xTile.Layers;
 using xTile.Tiles;
 
-using Rectangle = xTile.Dimensions.Rectangle;
+using PyTK.Extensions;
 
 namespace SecretBase.Editors
 {
 	internal class WorldEditor : IAssetEditor
 	{
 		private readonly IModHelper _helper;
-
+		internal static readonly Location IconLocation = new Location(506, 372);
+		
 		public WorldEditor(IModHelper helper)
 		{
 			_helper = helper;
@@ -27,30 +29,123 @@ namespace SecretBase.Editors
 
 		public bool CanEdit<T>(IAssetInfo asset)
 		{
-			return asset.DataType == typeof(Map);
+			return asset.DataType == typeof(Map) || asset.AssetNameEquals("LooseSprites\\Cursors");
 		}
 
 		public void Edit<T>(IAssetData asset)
 		{
-			var map = asset.GetData<Map>();
-			var name = asset.AssetName.Split('\\')[1];
-			var count = Const.BaseEntryLocations.Count(_ => _.Value.Equals(name));
-			if (count == 0)
-				return;
+			if (asset.DataType == typeof(Map))
+			{
+				var map = asset.GetData<Map>();
+				var nameSplit = asset.AssetName.Split('\\');
+				var name = nameSplit[nameSplit.Length - 1];
+			
+				if (!name.StartsWith(ModConsts.ModId))
+				{
+					// Edit maps containing secret base entrances
+					var numBasesInThisLocation = ModConsts.BaseEntryLocations.Count(_ => _.Value.Equals(name));
+					if (numBasesInThisLocation <= 0)
+						return;
+					Log.D($"Patching in {numBasesInThisLocation} secret bases to {name}.",
+						ModEntry.Instance.Config.DebugMode);
+					EditVanillaMap(map, name);
+				}
+				else
+				{
+					// Edit secret base maps
+					Log.D($"Patching secret base at {name}.",
+						ModEntry.Instance.Config.DebugMode);
+					EditSecretBaseMap(map, name);
+				}
+			}
+			else if (!asset.AssetNameEquals("LooseSprites\\Cursors"))
+			{}
+			else
+			{
+				// Home-cook a notification icon for under the HUD money tray:
 
-			// todo: add seasonal loading
+				// Prime a canvas as a clipboard to hold each a copy of the vanilla icon
+				// and our custom icon to merge together into a target open space in Cursors
+				const int iconW = 11;
+				const int iconH = 14;
+				var data = asset.AsImage().Data;
+				var canvas = new Color[iconW * iconH];
+				var texture = new Texture2D(Game1.graphics.GraphicsDevice, iconW, iconH);
+				var vanillaIconArea = new Rectangle(383, 493, iconW, iconH);
+				var targetArea = new Rectangle(IconLocation.X, IconLocation.Y, iconW, iconH);
+
+				// Patch in a copy of the vanilla quest log icon
+				data.GetData(0, vanillaIconArea, canvas, 0, canvas.Length);
+				texture.SetData(canvas);
+				asset.AsImage().PatchImage(texture, null, targetArea, PatchMode.Replace);
+				
+				// Chroma-key our custom icon with colours from the vanilla icon
+				var colorSampleA = canvas[iconW * 5 + 1];
+				var colorSampleB = canvas[iconW * 11 + 1];
+
+				var colorR = new Color(255, 0, 0);
+				var colorC = new Color(255, 0, 255);
+				var colorG = new Color(0, 255, 0);
+				var colorA = new Color(0, 0, 0, 0);
+
+				var icon = _helper.Content.Load<Texture2D>(Path.Combine(
+					ModConsts.AssetsPath, ModConsts.OutdoorsStuffTilesheetId + ".png"));
+				icon.GetData(0, new Rectangle(0, 0, iconW, iconH),
+					canvas, 0, canvas.Length);
+
+				for (var i = 0; i < canvas.Length; ++i)
+				{
+					if (canvas[i] == colorC)
+						canvas[i] = colorA;
+					else if (canvas[i] == colorG)
+						canvas[i] = colorSampleA;
+					else if (canvas[i] == colorR)
+						canvas[i] = colorSampleB;
+				}
+				
+				// Patch in the custom icon over the vanilla icon copy
+				texture.SetData(canvas);
+				asset.AsImage().PatchImage(texture, null, targetArea, PatchMode.Overlay);
+
+				// Patch in an alpha-shaded copy of the custom icon to use for the pulse animation
+				var colorShade = new Color(0, 0, 0, 0.35f);
+
+				for (var i = 0; i < canvas.Length; ++i)
+				{
+					if (canvas[i] == colorSampleB)
+						canvas[i] = colorShade;
+					else if (canvas[i] == colorSampleA)
+						canvas[i] = colorA;
+				}
+
+				texture.SetData(canvas);
+				asset.AsImage().PatchImage(texture, null,
+					new Rectangle(targetArea.X - targetArea.Width, targetArea.Y, targetArea.Width, targetArea.Height),
+					PatchMode.Overlay);
+			}
+		}
+
+		private void EditSecretBaseMap(Map map, string name) {
+			// Fix holes for bases owned by farmers who've fixed the holes in their current base previously
+			if (ModEntry.ShouldFarmersSecretBaseHolesBeFixed(Game1.player))
+			{
+				ModEntry.SecretBaseFixHoles(
+					Game1.player,
+					Game1.getLocationFromName(Path.GetFileNameWithoutExtension(name)));
+			}
+		}
+
+		private void EditVanillaMap(Map map, string name) {
+			// todo: add seasonal loading for all entry themes
 
 			// todo: resolve beach/beach-nightmarket inconsistency
 
-			Log.D($"Patching {count} secret bases into {name}",
-				ModEntry.Instance.Config.DebugMode);
-
 			var path = _helper.Content.GetActualAssetKey(
-				Path.Combine("Assets", "Maps", $"{Const.TilesheetId}.png"));
+				Path.Combine(ModConsts.AssetsPath, $"{ModConsts.OutdoorsStuffTilesheetId}.png"));
 			var texture = _helper.Content.Load<Texture2D>(path);
 
 			// Add secret base tilesheet
-			var tilesheet = new TileSheet(Const.TilesheetId, map, path,
+			var tilesheet = new TileSheet(ModConsts.OutdoorsStuffTilesheetId, map, path,
 				new Size(texture.Width / 16, texture.Height / 16),
 				new Size(16, 16));
 			map.AddTileSheet(tilesheet);
@@ -58,152 +153,93 @@ namespace SecretBase.Editors
 
 			// Add secret base entries for this map on an extra layer
 			var layer = map.GetLayer("Buildings");
-			layer = new Layer(Const.ExtraLayerId, map, layer.LayerSize, layer.TileSize);
+			layer = new Layer(ModConsts.ExtraLayerId, map, layer.LayerSize, layer.TileSize);
 
 			const int frameInterval = 150;
 			const BlendMode blend = BlendMode.Additive;
-			foreach (var baseLocation in Const.BaseEntryLocations.Where(_ => _.Value.Equals(name)))
+			foreach (var baseLocation in ModConsts.BaseEntryLocations
+				.Where(_ => _.Value.Equals(name)))
 			{
-				var coords = Const.BaseEntryCoordinates[baseLocation.Key];
+				var coords = ModConsts.BaseEntryCoordinates[baseLocation.Key];
 				var row = tilesheet.SheetWidth;
 
 				// todo: patch in inactive entries
 
-				if (baseLocation.Key.Contains("Tree"))
+				var index = 0;
+				switch (ModEntry.GetSecretBaseTheme(baseLocation.Key))
 				{
-					// exactly two (2) animated tiles
-					var index = row;
-					map.GetLayer("Front").Tiles[(int)coords.X, (int)coords.Y] = new AnimatedTile(layer, new[]
-					{
-						new StaticTile(layer, tilesheet, blend, index), new StaticTile(layer, tilesheet, blend, index),
-						new StaticTile(layer, tilesheet, blend, index), new StaticTile(layer, tilesheet, blend, index),
-						new StaticTile(layer, tilesheet, blend, index), new StaticTile(layer, tilesheet, blend, index),
-						new StaticTile(layer, tilesheet, blend, index), new StaticTile(layer, tilesheet, blend, index),
-						new StaticTile(layer, tilesheet, blend, index), new StaticTile(layer, tilesheet, blend, index),
-						new StaticTile(layer, tilesheet, blend, index + 1),
-						new StaticTile(layer, tilesheet, blend, index + 2),
-						new StaticTile(layer, tilesheet, blend, index + 3),
-						new StaticTile(layer, tilesheet, blend, index + 1),
-					}, frameInterval);
-					index += row;
-					map.GetLayer("Buildings").Tiles[(int)coords.X, (int)coords.Y + 1] = new AnimatedTile(layer, new[]
-					{
-						new StaticTile(layer, tilesheet, blend, index), new StaticTile(layer, tilesheet, blend, index),
-						new StaticTile(layer, tilesheet, blend, index), new StaticTile(layer, tilesheet, blend, index),
-						new StaticTile(layer, tilesheet, blend, index), new StaticTile(layer, tilesheet, blend, index),
-						new StaticTile(layer, tilesheet, blend, index), new StaticTile(layer, tilesheet, blend, index),
-						new StaticTile(layer, tilesheet, blend, index), new StaticTile(layer, tilesheet, blend, index),
-						new StaticTile(layer, tilesheet, blend, index + 1),
-						new StaticTile(layer, tilesheet, blend, index + 2),
-						new StaticTile(layer, tilesheet, blend, index + 3),
-						new StaticTile(layer, tilesheet, blend, index + 1),
-					}, frameInterval);
-				}
-				else if (baseLocation.Key.Contains("Rock"))
-				{
-					var index = row * 3;
-					if (map.GetLayer("Buildings").Tiles[(int) coords.X, (int) coords.Y + 1]?.TileIndex == 370)
-						index = row * 5;
-					layer.Tiles[(int)coords.X, (int)coords.Y] = new StaticTile(layer, tilesheet, blend, index);
-					layer.Tiles[(int)coords.X, (int)coords.Y + 1] = new StaticTile(layer, tilesheet, blend, index + row);
-				}
-				else if (baseLocation.Key.Contains("Bush"))
-				{
-					var index = row * 7;
-					layer.Tiles[(int)coords.X, (int)coords.Y] = new StaticTile(layer, tilesheet, blend, index);
-					index += row;
-					if (map.GetLayer("Buildings").Tiles[(int)coords.X, (int)coords.Y] == null)
-						layer.Tiles[(int)coords.X, (int)coords.Y + 1] = new StaticTile(layer, tilesheet, blend, index);
-					else
-						map.GetLayer("Buildings").Tiles[(int)coords.X, (int)coords.Y + 1] = new StaticTile(layer, tilesheet, blend, index);
+					case ModConsts.Theme.Tree:
+						// exactly two (2) animated tiles
+						index = row * 2;
+						index += Game1.currentSeason switch
+						{
+							"summer" => 1,
+							"fall" => 2,
+							"winter" => 3,
+							_ => 0
+						};
+						map.GetLayer("Front").Tiles[(int)coords.X, (int)coords.Y] = new AnimatedTile(layer, new[]
+						{
+							new StaticTile(layer, tilesheet, blend, index), new StaticTile(layer, tilesheet, blend, index),
+							new StaticTile(layer, tilesheet, blend, index), new StaticTile(layer, tilesheet, blend, index),
+							new StaticTile(layer, tilesheet, blend, index), new StaticTile(layer, tilesheet, blend, index),
+							new StaticTile(layer, tilesheet, blend, index), new StaticTile(layer, tilesheet, blend, index),
+							new StaticTile(layer, tilesheet, blend, index), new StaticTile(layer, tilesheet, blend, index),
+							new StaticTile(layer, tilesheet, blend, index + 1),
+							new StaticTile(layer, tilesheet, blend, index + 2),
+							new StaticTile(layer, tilesheet, blend, index + 3),
+							new StaticTile(layer, tilesheet, blend, index + 1),
+						}, frameInterval);
+						index += row;
+						map.GetLayer("Buildings").Tiles[(int)coords.X, (int)coords.Y + 1] = new AnimatedTile(layer, new[]
+						{
+							new StaticTile(layer, tilesheet, blend, index), new StaticTile(layer, tilesheet, blend, index),
+							new StaticTile(layer, tilesheet, blend, index), new StaticTile(layer, tilesheet, blend, index),
+							new StaticTile(layer, tilesheet, blend, index), new StaticTile(layer, tilesheet, blend, index),
+							new StaticTile(layer, tilesheet, blend, index), new StaticTile(layer, tilesheet, blend, index),
+							new StaticTile(layer, tilesheet, blend, index), new StaticTile(layer, tilesheet, blend, index),
+							new StaticTile(layer, tilesheet, blend, index + 1),
+							new StaticTile(layer, tilesheet, blend, index + 2),
+							new StaticTile(layer, tilesheet, blend, index + 3),
+							new StaticTile(layer, tilesheet, blend, index + 1),
+						}, frameInterval);
+						break;
+
+					case ModConsts.Theme.Bush:
+						// 2 static tiles
+						index = row * 4;
+						layer.Tiles[(int)coords.X, (int)coords.Y] = new StaticTile(layer, tilesheet, blend, index);
+						index += row;
+						if (map.GetLayer("Buildings").Tiles[(int)coords.X, (int)coords.Y] == null)
+							layer.Tiles[(int)coords.X, (int)coords.Y + 1] = new StaticTile(layer, tilesheet, blend, index);
+						else
+							map.GetLayer("Buildings").Tiles[(int)coords.X, (int)coords.Y + 1] = new StaticTile(layer, tilesheet, blend, index);
+						break;
+						
+					case ModConsts.Theme.Cave:
+					case ModConsts.Theme.Desert:
+					case ModConsts.Theme.Rock:
+						// 2 static tiles
+						index = row * 6;
+						if (map.GetLayer("Buildings").Tiles[(int) coords.X, (int) coords.Y + 1]?.TileIndex == 370)
+							index = row * 8;
+						layer.Tiles[(int)coords.X, (int)coords.Y] = new StaticTile(layer, tilesheet, blend, index);
+						layer.Tiles[(int)coords.X, (int)coords.Y + 1] = new StaticTile(layer, tilesheet, blend, index + row);
+						break;
+
+					default:
+						// and 1 duck egg
+						throw new NotImplementedException($"No theme handling for secret base {name}.");
 				}
 
 				// Enable player interactions
-				map.GetLayer("Buildings").Tiles[(int)coords.X, (int)coords.Y + 1].Properties["Action"] = Const.BaseEntryAction;
+				map.GetLayer("Buildings").Tiles[(int)coords.X, (int)coords.Y + 1].Properties["Action"] = ModConsts.BaseEntryAction;
 			}
 
 			// Draw the extra layer above Buildings layer
 			layer.Properties["DrawAbove"] = "Buildings";
 			map.AddLayer(layer);
-
-			// PyTK stolen compatibility
-			if (layer.Properties.ContainsKey("Draw") && map.GetLayer(layer.Properties["Draw"]) is Layer maplayer)
-				maplayer.AfterDraw += (s, e) => DrawLayer(layer, Location.Origin, layer.Properties.ContainsKey("WrapAround"));
-			else if (layer.Properties.ContainsKey("DrawAbove") && map.GetLayer(layer.Properties["DrawAbove"]) is Layer maplayerAbove)
-				maplayerAbove.AfterDraw += (s, e) => DrawLayer(layer, Location.Origin, layer.Properties.ContainsKey("WrapAround"));
-			else if (layer.Properties.ContainsKey("DrawBefore") && map.GetLayer(layer.Properties["DrawBefore"]) is Layer maplayerBefore)
-				maplayerBefore.BeforeDraw += (s, e) => DrawLayer(layer, Location.Origin, layer.Properties.ContainsKey("WrapAround"));
-
-			layer.Properties["DrawChecked"] = true;
-		}
-
-		/* PyTK stolen compatibility */
-
-		public static void DrawLayer(Layer layer, Location offset, bool wrap = false)
-		{
-			if (Game1.currentLocation is GameLocation location && location.map is Map map &&
-			    !map.Layers.Contains(layer))
-				return;
-			DrawLayer(layer, Game1.mapDisplayDevice, Game1.viewport, Game1.pixelZoom, offset, wrap);
-		}
-
-		public static void DrawLayer(Layer layer, IDisplayDevice device, Rectangle viewport, int pixelZoom,
-			Location offset, bool wrap = false)
-		{
-			if (layer.Properties.ContainsKey("offsetx") && layer.Properties.ContainsKey("offsety"))
-			{
-				offset = new Location(int.Parse(layer.Properties["offsetx"]), int.Parse(layer.Properties["offsety"]));
-				if (!layer.Properties.ContainsKey("OffestXReset"))
-				{
-					layer.Properties["OffestXReset"] = offset.X;
-					layer.Properties["OffestYReset"] = offset.Y;
-				}
-			}
-
-			if (!layer.Properties.ContainsKey("StartX"))
-			{
-				var local = Game1.GlobalToLocal(new Vector2(offset.X, offset.Y));
-				layer.Properties["StartX"] = local.X;
-				layer.Properties["StartY"] = local.Y;
-			}
-
-			if (layer.Properties.ContainsKey("AutoScrollX"))
-			{
-				var ax = layer.Properties["AutoScrollX"].ToString().Split(',');
-				var cx = int.Parse(ax[0]);
-				var mx = 1;
-				if (ax.Length > 1)
-					mx = int.Parse(ax[1]);
-
-				if (cx < 0)
-					mx *= -1;
-
-				if (Game1.currentGameTime.TotalGameTime.Ticks % cx == 0)
-					offset.X += mx;
-			}
-
-			if (layer.Properties.ContainsKey("AutoScrollY"))
-			{
-				var ay = layer.Properties["AutoScrollY"].ToString().Split(',');
-				var cy = int.Parse(ay[0]);
-				var my = 1;
-				if (ay.Length > 1)
-					my = int.Parse(ay[1]);
-
-				if (cy < 0)
-					my *= -1;
-
-				if (Game1.currentGameTime.TotalGameTime.Ticks % cy == 0)
-					offset.Y += my;
-			}
-
-			layer.Properties["offsetx"] = offset.X;
-			layer.Properties["offsety"] = offset.Y;
-
-			if (layer.Properties.ContainsKey("tempOffsetx") && layer.Properties.ContainsKey("tempOffsety"))
-				offset = new Location(int.Parse(layer.Properties["tempOffsetx"]), int.Parse(layer.Properties["tempOffsety"]));
-			
-			layer.Draw(device, viewport, offset, wrap, pixelZoom);
+			map.enableMoreMapLayers();
 		}
 	}
 }

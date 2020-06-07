@@ -1,28 +1,60 @@
 {
-    "addMaps": [
-        {
-            "name": "SecretBaseTree0",
-            "file": "assets/SecretBaseTree0.tbin"
-        },
-        {
-            "name": "SecretBaseTree1",
-            "file": "assets/SecretBaseTree1.tbin"
-        },
-        {
-            "name": "SecretBaseTree2",
-            "file": "assets/SecretBaseTree2.tbin"
-        },
-        {
-            "name": "SecretBaseTree3",
-            "file": "assets/SecretBaseTree3.tbin"
-        },
-        {
-            "name": "SecretBaseRock0",
-            "file": "assets/SecretBaseRock0.tbin"
-        },
-        {
-            "name": "SecretBaseRock1",
-            "file": "assets/SecretBaseRock1.tbin"
-        }
-    ] 
+  "addMaps": [
+    {
+      "name": "SecretBaseTree0",
+      "file": "assets/SecretBaseTree0.tmx",
+      "type": "Custom:SecretBase.Core.SecretBaseLocation, SecretBase, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
+    },
+    {
+      "name": "SecretBaseTree1",
+      "file": "assets/SecretBaseTree1.tmx",
+      "type": "Custom:SecretBase.Core.SecretBaseLocation, SecretBase, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
+    },
+    {
+      "name": "SecretBaseTree2",
+      "file": "assets/SecretBaseTree2.tmx",
+      "type": "Custom:SecretBase.Core.SecretBaseLocation, SecretBase, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
+    },
+    {
+      "name": "SecretBaseTree3",
+      "file": "assets/SecretBaseTree3.tmx",
+      "type": "Custom:SecretBase.Core.SecretBaseLocation, SecretBase, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
+    },
+    {
+      "name": "SecretBaseBush0",
+      "file": "assets/SecretBaseBush0.tmx",
+      "type": "Custom:SecretBase.Core.SecretBaseLocation, SecretBase, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
+    },
+    // todo: add SecretBaseBush1, SecretBaseBush2
+    {
+      "name": "SecretBaseRock0",
+      "file": "assets/SecretBaseRock0.tmx",
+      "type": "Custom:SecretBase.Core.SecretBaseLocation, SecretBase, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
+    },
+    {
+      "name": "SecretBaseRock1",
+      "file": "assets/SecretBaseRock1.tmx",
+      "type": "Custom:SecretBase.Core.SecretBaseLocation, SecretBase, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
+    },
+    {
+      "name": "SecretBaseRock2",
+      "file": "assets/SecretBaseRock2.tmx",
+      "type": "Custom:SecretBase.Core.SecretBaseLocation, SecretBase, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
+    },
+    {
+      "name": "SecretBaseDesert0",
+      "file": "assets/SecretBaseDesert0.tmx",
+      "type": "Custom:SecretBase.Core.SecretBaseLocation, SecretBase, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
+    },
+    {
+      "name": "SecretBaseDesert1",
+      "file": "assets/SecretBaseDesert1.tmx",
+      "type": "Custom:SecretBase.Core.SecretBaseLocation, SecretBase, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
+    },
+    {
+      "name": "SecretBaseDesert2",
+      "file": "assets/SecretBaseDesert2.tmx",
+      "type": "Custom:SecretBase.Core.SecretBaseLocation, SecretBase, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
+    }
+  ] 
 }

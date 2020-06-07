@@ -3,7 +3,7 @@ using Microsoft.Xna.Framework;
 
 namespace SecretBase
 {
-	public class Const
+	public class ModConsts
 	{
 		public enum Theme
 		{
@@ -17,13 +17,23 @@ namespace SecretBase
 		internal const string ModId = "SecretBase";
 		internal const string BaseEntryAction = ModId + "Entry";
 		internal const string LaptopAction = ModId + "Laptop";
+		internal const string HoleAction = ModId + "Hole";
 		internal const string ExtraLayerId = ModId + "ExtraStuffLayer";
-		internal const string TilesheetId = "z_secretbase_stuff";
+		internal const string AssetsPath = "assets";
+		internal const string OutdoorsStuffTilesheetId = "z_secretbase_outdoors";
+		internal const string IndoorsStuffTilesheetId = "z_secretbase_indoors";
 		internal const string DataFile = "moddata_{0}.json";
 		internal const int DummyChestCoords = -100;
 
 		// todo: make sve-compatible dictionaries
 		// todo: make stardew reimagined 2 dictionaries
+		
+		internal static readonly List<string> AcceptableMapTypes = new List<string>
+		{
+			"Default",
+			"Expanded",
+			"Reimagined"
+		};
 
 		internal static readonly Dictionary<string, string> BaseEntryLocations = new Dictionary<string, string>
 		{
@@ -40,8 +50,8 @@ namespace SecretBase
 			{ "SecretBaseRock3", "Railroad" },
 
 			{ "SecretBaseBush0", "Beach" },
-			{ "SecretBaseBush1", "Backwoods" },
-			{ "SecretBaseBush2", "Forest" },
+			//{ "SecretBaseBush1", "Backwoods" },
+			//{ "SecretBaseBush2", "Forest" },
 
 			{ "SecretBaseDesert0", "Desert" },
 			{ "SecretBaseDesert1", "Desert" },
@@ -63,8 +73,8 @@ namespace SecretBase
 			{ "SecretBaseRock3", new Vector2(31, 34) },
 
 			{ "SecretBaseBush0", new Vector2(86, 1) },
-			{ "SecretBaseBush1", new Vector2(30, 22) },
-			{ "SecretBaseBush2", new Vector2(3, 26) },
+			//{ "SecretBaseBush1", new Vector2(30, 22) },
+			//{ "SecretBaseBush2", new Vector2(3, 26) },
 
 			{ "SecretBaseDesert0", new Vector2(2, 42) },
 			{ "SecretBaseDesert1", new Vector2(19, 6) },

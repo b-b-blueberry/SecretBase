@@ -1,18 +1,101 @@
 ﻿{
-    "look.at.those.tokens": "Started {{mod}} from folder: {{folder}}",
+  // ==============================================
+  // Original script by blueberry
+  // Translations always welcome!
+  // Contact me online @ the Secret Base mod page:
+  // https://www.nexusmods.com/stardewvalley/mods/5305
+  // ==============================================
 
-    "laptop.menuprompt": "Do what?",
-    "laptop.packprompt": "This will pack all your furniture into storage and close the Secret Base. Continue?",
-    "laptop.storage": "Storage",
-    "laptop.packup": "Pack Up",
 
-    "entry.treeprompt": "If some vines were cut loose, this tree could be climbed.",
-    "entry.caveprompt": "If this boulder were pushed aside, it might reveal a hidden cave.",
-    "entry.bushprompt": "If these branches were moved, it might be possible to go inside.",
-    "entry.activateprompt": "Use Secret Base?",  
-    "entry.relocateprompt": "You already have a Secret Base. Pack up and move?",
+  // ==============================================
+  // Secret Base Entry
+  // ==============================================
 
-    "dialogue.y": "Yes",
-    "dialogue.n": "No",
-    "dialogue.cancel": "Return"
+  // Basic entry dialogue
+  // These show up on secret bases that nobody owns.
+  "entry.tree_inspect": "If some vines were cut loose, this tree could be climbed.",
+  "entry.cave_inspect": "If this boulder were smashed, it might reveal a hidden cave.",
+  "entry.bush_inspect": "If these branches were cut, it might be possible to go inside.",
+
+  "entry.activate_prompt": "Use Secret Base?",
+  "entry.deactivate_prompt": "You already have a Secret Base. Pack up and move?",
+
+  // Guest entry dialogue
+  // These show up when a secret base has an owner, and it's not you.
+  "entry.guest_request_inspect": "It looks like somebody lives here.",
+  "entry.guest_request_prompt": "Ask to visit this Secret Base?",
+  "entry.guest_denied_inspect": "You're not able to go inside right now...",
+
+  // Secret base interior dialogue for hole tiles
+  // These are attached to the broken floors in some secret bases.
+  // Because I'm a reasonable human being, you can fix them to actually use all the extra space in your base.
+  // Because I'm a villain, you've got to earn the right to do that.
+  "hole.fix_inspect": "The floor here's totally broken.",
+  "hole.fix_prompt": "Fix floor?",
+
+  // ==============================================
+  // Laptop Menu
+  // ==============================================
+
+  // Dialogue prompts
+  // These show up in the dialogue tree attached to the laptop object sitting in every secret base.
+  "laptop.menu_prompt": "Do what?",
+  "laptop.pack_prompt": "This will pack all your furniture into storage and close the Secret Base. Continue?",
+  "laptop.storage_option": "Storage",
+  "laptop.pack_option": "Pack Up",
+
+  // ==============================================
+  // Secret Mailbox
+  // ==============================================
+
+  // Mailbox strings
+  "notification.icon.inspect": "Secret Mailbox", // Mailbox menu heading, HUD icon hover text
+  "notification.request.inspect": "Send reply", // Mail hover text for requests from other players
+  "notification.response.inspect": "Dismiss message", // Mail hover text for replies to your sent requests
+
+  // Mailbox response options
+  "notification.once_option": "Once",
+  "notification.today_option": "Today",
+  "notification.always_option": "Always",
+  "notification.never_option": "Never",
+
+  // Mailbox summary message builder
+  //    English language examples:
+  //    Blue accepted from now on / Purple requested to visit / Green declined for the day
+
+  // Format
+  "notification.mail.format": "{{sender}} {{request}} {{duration}}",
+  // Request
+  "notification.request.requested": "requested",
+  "notification.request.allowed": "accepted",
+  "notification.request.denied": "declined",
+  // Duration
+  "notification.duration.requested.none": "to visit",
+  "notification.duration.requested.once": "",
+  "notification.duration.requested.today": "",
+  "notification.duration.requested.always": "",
+  "notification.duration.allowed.none": "",
+  "notification.duration.allowed.once": "just this once",
+  "notification.duration.allowed.today": "for the day",
+  "notification.duration.allowed.always": "from now on",
+  "notification.duration.denied.none": "",
+  "notification.duration.denied.once": "for now",
+  "notification.duration.denied.today": "for the day",
+  "notification.duration.denied.always": "from now on",
+
+  // Mailbox letter strings
+  "letter.intro": "Hi {{guest}},",
+  "letter.1": "You've been cordially",
+  "letter.2": "to my Secret Base",
+  "letter.outro": "{{owner}}",
+
+  // ==============================================
+  // Generic dialogue strings
+  // ==============================================
+
+  // Simple dialogue strings
+  // These show up in all sorts of menus for simple actions.
+  "dialogue.yes_option": "Yes",
+  "dialogue.no_option": "No",
+  "dialogue.cancel_option": "Return"
 }

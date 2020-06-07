@@ -1,12 +1,17 @@
 ﻿{
-    "Name": "[TMX] Secret Base Locations",
-    "Author": "blueberry",
-    "Version": "1.0.0",
-    "Description": "Loctions loaded into Secret Base",
-    "UniqueID": "blueberry.SecretBase.Locations",
-    "MinimumApiVersion": "3.0.0",
-    "UpdateKeys": [ "Nexus:5305" ],
-    "ContentPackFor": {
-        "UniqueID": "Platonymous.TMXLoader"
+  "Name": "[TMX] Secret Base Locations",
+  "Author": "blueberry",
+  "Version": "1.0.0",
+  "Description": "Locations loaded into Secret Base",
+  "UniqueID": "blueberry.SecretBase.Locations",
+  "MinimumApiVersion": "3.0.0",
+  "UpdateKeys": [ "Nexus:5305" ],
+  "ContentPackFor": {
+    "UniqueID": "Platonymous.TMXLoader"
+  },
+  "Dependencies": [
+    {
+      "UniqueID": "blueberry.SecretBase"
     }
+  ]
 }
