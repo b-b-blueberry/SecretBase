@@ -2,8 +2,30 @@
   // ==============================================
   // Original script by blueberry
   // Translations always welcome!
-  // Contact me online @ the Secret Base mod page:
+  // Contact me @ the Secret Base mod page:
   // https://www.nexusmods.com/stardewvalley/mods/5305
+  // ==============================================
+
+
+  // ==============================================
+  // TRANSLATOR NOTES:
+  //
+  // >> Leave all values in {{braces}} untouched.
+  //    These are used in C# code as token references.
+  //    You can, however, rearrange their order if it suits the translation.
+  //    example: "{{greeting}}, {{farmer}}" ==> "{{farmer}}! {{greeting}}."
+  //
+  // >> Empty tokens (" ") should be left untouched.
+  //    Shortening them to "" will cause translation errors.
+  //
+  // >> Removing leading spaces might lead to weird alignment
+  //    for strings in the letter builders. Leave those as they are.
+  //
+  // >> Tokens marked as:
+  //      _inspect: Shown in non-interactive dialogue popups
+  //      _prompt: Used as questions for interactive dialogue
+  //      _option: Used as answer choices for interactive dialogue
+  //      _format: Template for sentences containing other translations.
   // ==============================================
 
 
@@ -16,14 +38,13 @@
   "entry.tree_inspect": "If some vines were cut loose, this tree could be climbed.",
   "entry.cave_inspect": "If this boulder were smashed, it might reveal a hidden cave.",
   "entry.bush_inspect": "If these branches were cut, it might be possible to go inside.",
-
   "entry.activate_prompt": "Use Secret Base?",
   "entry.deactivate_prompt": "You already have a Secret Base. Pack up and move?",
 
   // Guest entry dialogue
   // These show up when a secret base has an owner, and it's not you.
-  "entry.guest_request_inspect": "It looks like somebody lives here.",
-  "entry.guest_request_prompt": "Ask to visit this Secret Base?",
+  "entry.guest_request_inspect": "It looks like somebody's gotten here first.",
+  "entry.guest_request_prompt": "Send request to Secret Mailbox?",
   "entry.guest_denied_inspect": "You're not able to go inside right now...",
 
   // Secret base interior dialogue for hole tiles
@@ -49,45 +70,163 @@
   // ==============================================
 
   // Mailbox strings
-  "notification.icon.inspect": "Secret Mailbox", // Mailbox menu heading, HUD icon hover text
-  "notification.request.inspect": "Send reply", // Mail hover text for requests from other players
-  "notification.response.inspect": "Dismiss message", // Mail hover text for replies to your sent requests
+  "notification.icon_inspect": "Secret Mailbox", // On HUD icon, also for Secret Mailbox banner
+  "notification.compose_inspect": "Compose reply", // On letter icon when viewing requests
+  "notification.send_inspect": "Send letter", // On letter icon when writing a reply
+  "notification.trashcan_inspect": "Dismiss message", // On trashcan icon when viewing responses
+  "notification.empty_inspect": "All caught up!", // On empty mailbox menu
 
-  // Mailbox response options
+  // Mailbox response accept/decline popup
+  // Prompts
+  // 1 line
+  "notification.response_prompt": "Let {{guest}} in?",
+  "notification.duration_prompt": "How long for?",
+  // Options
+  "notification.allow_option": "Accept",
+  "notification.deny_option": "Decline",
   "notification.once_option": "Once",
   "notification.today_option": "Today",
   "notification.always_option": "Always",
-  "notification.never_option": "Never",
 
   // Mailbox summary message builder
+  // Shows up in the Secret Mailbox inbox page for each letter.
   //    English language examples:
   //    Blue accepted from now on / Purple requested to visit / Green declined for the day
 
   // Format
-  "notification.mail.format": "{{sender}} {{request}} {{duration}}",
+  "notification.message.format": "{{sender}} {{request}} {{duration}}",
   // Request
   "notification.request.requested": "requested",
   "notification.request.allowed": "accepted",
   "notification.request.denied": "declined",
   // Duration
   "notification.duration.requested.none": "to visit",
-  "notification.duration.requested.once": "",
-  "notification.duration.requested.today": "",
-  "notification.duration.requested.always": "",
-  "notification.duration.allowed.none": "",
+  "notification.duration.requested.once": " ",
+  "notification.duration.requested.today": " ",
+  "notification.duration.requested.always": " ",
+  "notification.duration.allowed.none": " ",
   "notification.duration.allowed.once": "just this once",
   "notification.duration.allowed.today": "for the day",
   "notification.duration.allowed.always": "from now on",
-  "notification.duration.denied.none": "",
+  "notification.duration.denied.none": " ",
   "notification.duration.denied.once": "for now",
   "notification.duration.denied.today": "for the day",
   "notification.duration.denied.always": "from now on",
 
-  // Mailbox letter strings
-  "letter.intro": "Hi {{guest}},",
-  "letter.1": "You've been cordially",
-  "letter.2": "to my Secret Base",
-  "letter.outro": "{{owner}}",
+  // Mailbox letter message builder
+  // Shows up in the full-size message for letters in the Secret Mailbox when clicked.
+  //    English language examples:
+  //
+  //    Hey Green,
+  //    Let me in!
+  //    I won't break anything! Honest!
+  //    Bye for now,
+  //    Blue
+  //
+  //    Yo Purple,
+  //    You're allowed in, see you soon!
+  //    That'll be 100g, plus tip.
+  //    Ciao,
+  //    Green
+  //
+  //    Morning Blue,
+  //    No girls allowed.
+  //    Me and Sam are having a party here!
+  //    Smell ya later,
+  //    Purple
+  //
+  // It'd be best to test these all in-game, as word lengths can mess with even very short lines.
+  // Write up a big batch and tweak them to fit in after; you can cycle through all 10 at once in the menu.
+
+  // Opening string
+  // 1 line
+  "letter.intro_format": "{{greeting}} {{recipient}},",
+  "letter.intro.0": "Morning",
+  "letter.intro.1": "Hi",
+  "letter.intro.2": "Hey",
+  "letter.intro.3": "Sup",
+  "letter.intro.4": "Yo",
+  "letter.intro.5": "How's it going",
+  "letter.intro.6": "Howdy",
+  "letter.intro.7": "Hola",
+  "letter.intro.8": "Dear",
+  "letter.intro.9": "To",
+  // First string for requests
+  // 1~2 lines
+  "letter.request.0": " ",
+  "letter.request.1": "Can I come visit your Secret Base?",
+  "letter.request.2": "Open up!",
+  "letter.request.3": "I'd love to see your Secret Base!",
+  "letter.request.4": "May I share the word of lord Yoba?",
+  "letter.request.5": "I found your Base... the secret's out.",
+  "letter.request.6": "Let me in, I'm a Junimo.",
+  "letter.request.7": "It's cold out here...",
+  "letter.request.8": "Knock knock, open up the door.",
+  "letter.request.9": "You didn't leave the key on the mat.",
+  // First string for accept responses
+  // 1~2 lines
+  "letter.allowed.0": " ",
+  "letter.allowed.1": "You're allowed in, see you soon!",
+  "letter.allowed.2": "You're cordially invited to my Base.",
+  "letter.allowed.3": "YOUR REQUEST HAS BEEN PERMITTED.",
+  "letter.allowed.4": "Come in, the key's under the rock.",
+  "letter.allowed.5": "So... you finally found me.",
+  "letter.allowed.6": "Come on in, bring {{someone}} too!",
+  "letter.allowed.7": "Be here at 10. Don't ask why.",
+  "letter.allowed.8": "I thought you'd never ask!",
+  "letter.allowed.9": "Come visit me anytime!",
+  // First string for decline responses
+  // 1~2 lines
+  "letter.denied.0": " ",
+  "letter.denied.1": "I'll decline for now.",
+  "letter.denied.2": "Not right now, sorry!",
+  "letter.denied.3": "Ask again tomorrow?",
+  "letter.denied.4": "I'm still doing the decorations!!",
+  "letter.denied.5": "YOUR REQUEST HAS BEEN REJECTED.",
+  "letter.denied.6": "Sorry, no solicitors.",
+  "letter.denied.7": "I don't like visitors...",
+  "letter.denied.8": "No girls allowed.",
+  "letter.denied.9": "Your friendship level is too low.",
+  // Second string for requests
+  // 1~3 lines
+  "letter.duration.0": " ",
+  "letter.duration.1": "I just want to visit this one time.",
+  "letter.duration.2": "Just this once? Pretty please?",
+  "letter.duration.3": "I wanna see your new place!",
+  "letter.duration.4": "I'm here on a day trip.",
+  "letter.duration.5": "I won't break anything! Promise!",
+  "letter.duration.6": "Mind if we have a sleepover?",
+  "letter.duration.7": "Can you put me up for the night?",
+  "letter.duration.8": "I'm about to become part of your furniture.",
+  "letter.duration.9": "I'll be in your Secret Base until I pass out.",
+  // Second string for accept or decline responses
+  // 1~3 lines
+  "letter.owner.0": " ",
+  "letter.owner.1": "Now, where's your Secret Base ..?",
+  "letter.owner.2": "Don't leave footprints on the carpet!",
+  "letter.owner.3": "Leave me a present!",
+  "letter.owner.4": "You owe me.",
+  "letter.owner.5": "Me and {{someone}} are having a party here!",
+  "letter.owner.6": "I'll have dinner ready for you, honey.",
+  "letter.owner.7": "Don't let the door hit you on the way out.",
+  "letter.owner.8": "See you on the farm!",
+  "letter.owner.9": "That'll be 100g, plus tip.",
+  // Closing string
+  // 1 line
+  "letter.outro.0": "Regards,",
+  "letter.outro.1": "See ya,",
+  "letter.outro.2": "Enjoy,",
+  "letter.outro.3": "Meet you there,",
+  "letter.outro.4": "Love you,",
+  "letter.outro.5": "Smell ya later,",
+  "letter.outro.6": "Bye for now,",
+  "letter.outro.7": "Ciao,",
+  "letter.outro.8": "Later +", // '+' is Emily's skater boy emoji
+  "letter.outro.9": "XOXO",
+  // Signature
+  "letter.signature": "   {{sender}}",
+  // Fallback text when failing to get a random character name
+  "letter.someone": "someone",
 
   // ==============================================
   // Generic dialogue strings

@@ -8,5 +8,7 @@ namespace SecretBase.Core
 			Log.W($"TYPEOF LOCATION: {GetType().AssemblyQualifiedName}");
 		}
 		public SecretBaseLocation(string mapPath, string name) : base(mapPath, name) {}
+
+		// todo: move Hole methods into this class
 	}
 }

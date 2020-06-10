@@ -5,7 +5,7 @@ using StardewValley;
 using StardewValley.Menus;
 using Rectangle = Microsoft.Xna.Framework.Rectangle;
 
-namespace SecretBase
+namespace SecretBase.ModMessages
 {
 	/// <summary>
 	/// This is a big stupid class.
@@ -67,7 +67,7 @@ namespace SecretBase
 			UpdatePosition();
 			_hoverText = "";
 			if (isWithinBounds(x, y))
-				_hoverText = ModEntry.Instance.i18n.Get("notification.icon.inspect");
+				_hoverText = ModEntry.Instance.i18n.Get("notification.icon_inspect");
 		}
 
 		private void UpdatePosition()
@@ -116,7 +116,7 @@ namespace SecretBase
 				SpriteEffects.None,
 				0.99f - 1f / 10000f);
 
-			if (_pulseTimer <= 0 || Game1.activeClickableMenu is NotificationMenu)
+			if (_pulseTimer <= 0 || !ModEntry.ModState.HasUnreadSecretMail)
 				return;
 
 			var scaleMult = 1f / (Math.Max(300f, Math.Abs(_pulseTimer % 1000 - 500)) / 500f);
