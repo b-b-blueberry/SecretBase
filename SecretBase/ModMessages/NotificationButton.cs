@@ -1,12 +1,17 @@
 ﻿using System;
-using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Graphics;
+
 using StardewValley;
 using StardewValley.Menus;
+
+using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 using Rectangle = Microsoft.Xna.Framework.Rectangle;
 
 namespace SecretBase.ModMessages
 {
+	// TODO: SYSTEM: Add a 'leave peer's secret base' prompt while in a peer's base to prevent jailing
+	// TODO: SYSTEM: Add a 'evict guests' button to remove and block guests
+
 	/// <summary>
 	/// This is a big stupid class.
 	/// 

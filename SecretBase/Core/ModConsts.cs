@@ -25,8 +25,8 @@ namespace SecretBase
 		internal const string DataFile = "moddata_{0}.json";
 		internal const int DummyChestCoords = -100;
 
-		// todo: make sve-compatible dictionaries
-		// todo: make stardew reimagined 2 dictionaries
+		// TODO: ASSETS: SVE-compatible dictionaries
+		// TODO: ASSETS: Stardew Reimagined 2 dictionaries
 		
 		internal static readonly List<string> AcceptableMapTypes = new List<string>
 		{
@@ -34,6 +34,12 @@ namespace SecretBase
 			"Expanded",
 			"Reimagined"
 		};
+
+		// Note: Secret Bases are only passed around by name in the system, so swapping between map
+		// overhauls shouldn't have any unwanted side effects. It'll pick the base nearest to the
+		// player's cursor interactions and fetch the data from the dictionary.
+
+		// TODO: BUGS: Test this theory, see whether base entry tiles start appearing in odd places
 
 		internal static readonly Dictionary<string, string> BaseEntryLocations = new Dictionary<string, string>
 		{
@@ -63,7 +69,7 @@ namespace SecretBase
 			{ "SecretBaseTree0", new Vector2(41, 8) },
 			{ "SecretBaseTree1", new Vector2(62, 8) },
 			{ "SecretBaseTree2", new Vector2(48, 3) },
-			{ "SecretBaseTree3", new Vector2(29, 10) },
+			{ "SecretBaseTree3", new Vector2(9, 1) },
 			{ "SecretBaseTree4", new Vector2(45, 12) },
 			{ "SecretBaseTree5", new Vector2(27, 95) },
 
@@ -79,6 +85,22 @@ namespace SecretBase
 			{ "SecretBaseDesert0", new Vector2(2, 42) },
 			{ "SecretBaseDesert1", new Vector2(19, 6) },
 			{ "SecretBaseDesert2", new Vector2(31, 41) },
+		};
+		
+		// Planks usually match the orientation of the corridor they're found in
+		internal static readonly Dictionary<string, List<Rectangle>> BaseHoleCoordinates = new Dictionary<string, List<Rectangle>>
+		{
+			{ "SecretBaseTree3", new List<Rectangle>
+				{
+					new Rectangle(4, 10, 2, 3),
+					new Rectangle(13, 11, 2, 3)
+				}
+			},
+			{ "SecretBaseDesert2", new List<Rectangle>
+				{
+					new Rectangle(12, 7, 3, 2)
+				}
+			}
 		};
 	}
 }

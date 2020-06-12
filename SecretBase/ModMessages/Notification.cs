@@ -1,5 +1,4 @@
 ﻿using StardewValley;
-using StardewValley.Menus;
 
 namespace SecretBase.ModMessages
 {

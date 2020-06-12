@@ -59,7 +59,7 @@ namespace SecretBase.ModMessages
 		private ITranslationHelper i18n => ModEntry.Instance.i18n;
 		private string _hoverText = "";
 
-		// todo: error checking: viewing letters from farmers who have been removed from the world (Game1.getFarmer(...))
+		// TODO: ERRORS: Viewing letters from farmers who have been removed from the world (Game1.getFarmer(...))
 
 		public NotificationMenu()
 			: base(0, 0, 0, 0, true)

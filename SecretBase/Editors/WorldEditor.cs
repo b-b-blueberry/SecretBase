@@ -40,24 +40,14 @@ namespace SecretBase.Editors
 				var map = asset.GetData<Map>();
 				var nameSplit = asset.AssetName.Split('\\');
 				var name = nameSplit[nameSplit.Length - 1];
-			
-				if (!name.StartsWith(ModConsts.ModId))
-				{
-					// Edit maps containing secret base entrances
-					var numBasesInThisLocation = ModConsts.BaseEntryLocations.Count(_ => _.Value.Equals(name));
-					if (numBasesInThisLocation <= 0)
-						return;
-					Log.D($"Patching in {numBasesInThisLocation} secret bases to {name}.",
-						ModEntry.Instance.Config.DebugMode);
-					EditVanillaMap(map, name);
-				}
-				else
-				{
-					// Edit secret base maps
-					Log.D($"Patching secret base at {name}.",
-						ModEntry.Instance.Config.DebugMode);
-					EditSecretBaseMap(map, name);
-				}
+
+				// Edit maps containing secret base entrances
+				var numBasesInThisLocation = ModConsts.BaseEntryLocations.Count(_ => _.Value.Equals(name));
+				if (numBasesInThisLocation <= 0)
+					return;
+				Log.D($"Patching in {numBasesInThisLocation} secret bases to {name}.",
+					ModEntry.Instance.Config.DebugMode);
+				EditVanillaMap(map, name);
 			}
 			else if (!asset.AssetNameEquals("LooseSprites\\Cursors"))
 			{}
@@ -126,20 +116,20 @@ namespace SecretBase.Editors
 			}
 		}
 
-		private void EditSecretBaseMap(Map map, string name) {
-			// Fix holes for bases owned by farmers who've fixed the holes in their current base previously
-			if (ModEntry.ShouldFarmersSecretBaseHolesBeFixed(Game1.player))
+		private void EditTilesheet() {
+			var season = Game1.currentSeason switch
 			{
-				ModEntry.SecretBaseFixHoles(
-					Game1.player,
-					Game1.getLocationFromName(Path.GetFileNameWithoutExtension(name)));
-			}
+				"summer" => 1,
+				"fall" => 2,
+				"winter" => 3,
+				_ => 0
+			};
+
 		}
 
 		private void EditVanillaMap(Map map, string name) {
-			// todo: add seasonal loading for all entry themes
-
-			// todo: resolve beach/beach-nightmarket inconsistency
+			// TODO: METHOD: Add seasonal loading for all entry themes once assets are ready
+			// TODO: BUGS: Resolve beach/beach-nightmarket entry patching inconsistency when Night Markets are active
 
 			var path = _helper.Content.GetActualAssetKey(
 				Path.Combine(ModConsts.AssetsPath, $"{ModConsts.OutdoorsStuffTilesheetId}.png"));
@@ -152,7 +142,7 @@ namespace SecretBase.Editors
 			map.AddTileSheet(tilesheet);
 			map.LoadTileSheets(Game1.mapDisplayDevice);
 
-			// Add secret base entries for this map on an extra layer
+			// Add secret base entries for this map
 			var layer = map.GetLayer("Buildings");
 			layer = new Layer(ModConsts.ExtraLayerId, map, layer.LayerSize, layer.TileSize);
 
@@ -164,7 +154,7 @@ namespace SecretBase.Editors
 				var coords = ModConsts.BaseEntryCoordinates[baseLocation.Key];
 				var row = tilesheet.SheetWidth;
 
-				// todo: patch in inactive entries
+				// TODO: ASSETS: Patch in inactive assets once they've been made
 
 				var index = 0;
 				switch (ModEntry.GetSecretBaseTheme(baseLocation.Key))
@@ -172,13 +162,6 @@ namespace SecretBase.Editors
 					case ModConsts.Theme.Tree:
 						// exactly two (2) animated tiles
 						index = row * 2;
-						index += Game1.currentSeason switch
-						{
-							"summer" => 1,
-							"fall" => 2,
-							"winter" => 3,
-							_ => 0
-						};
 						map.GetLayer("Front").Tiles[(int)coords.X, (int)coords.Y] = new AnimatedTile(layer, new[]
 						{
 							new StaticTile(layer, tilesheet, blend, index), new StaticTile(layer, tilesheet, blend, index),
@@ -214,7 +197,8 @@ namespace SecretBase.Editors
 						if (map.GetLayer("Buildings").Tiles[(int)coords.X, (int)coords.Y] == null)
 							layer.Tiles[(int)coords.X, (int)coords.Y + 1] = new StaticTile(layer, tilesheet, blend, index);
 						else
-							map.GetLayer("Buildings").Tiles[(int)coords.X, (int)coords.Y + 1] = new StaticTile(layer, tilesheet, blend, index);
+							map.GetLayer("Buildings").Tiles[(int)coords.X, (int)coords.Y + 1]
+								= new StaticTile(layer, tilesheet, blend, index);
 						break;
 						
 					case ModConsts.Theme.Cave:
@@ -224,8 +208,10 @@ namespace SecretBase.Editors
 						index = row * 6;
 						if (map.GetLayer("Buildings").Tiles[(int) coords.X, (int) coords.Y + 1]?.TileIndex == 370)
 							index = row * 8;
-						layer.Tiles[(int)coords.X, (int)coords.Y] = new StaticTile(layer, tilesheet, blend, index);
-						layer.Tiles[(int)coords.X, (int)coords.Y + 1] = new StaticTile(layer, tilesheet, blend, index + row);
+						layer.Tiles[(int)coords.X, (int)coords.Y]
+							= new StaticTile(layer, tilesheet, blend, index);
+						layer.Tiles[(int)coords.X, (int)coords.Y + 1]
+							= new StaticTile(layer, tilesheet, blend, index + row);
 						break;
 
 					default:
@@ -234,7 +220,8 @@ namespace SecretBase.Editors
 				}
 
 				// Enable player interactions
-				map.GetLayer("Buildings").Tiles[(int)coords.X, (int)coords.Y + 1].Properties["Action"] = ModConsts.BaseEntryAction;
+				map.GetLayer("Buildings").Tiles[(int)coords.X, (int)coords.Y + 1].Properties["Action"]
+					= ModConsts.BaseEntryAction;
 			}
 
 			// Draw the extra layer above Buildings layer

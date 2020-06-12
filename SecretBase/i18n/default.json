@@ -66,6 +66,16 @@
   "laptop.pack_option": "Pack Up",
 
   // ==============================================
+  // HUD Buttons
+  // ==============================================
+
+  // Hover strings
+  "button.mailbox_inspect": "Secret Mailbox",
+  "button.evict_inspect": "Evict guests",
+  "button.lock_inspect": "Lock Secret Base",
+  "button.unlock_inspect": "Unlock Secret Base",
+
+  // ==============================================
   // Secret Mailbox
   // ==============================================
 
