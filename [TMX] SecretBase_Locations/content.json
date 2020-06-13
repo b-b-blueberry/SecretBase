@@ -1,59 +1,59 @@
 {
   "addMaps": [
     {
-      "name": "SecretBaseTree0",
-      "file": "assets/SecretBaseTree0.tmx",
+      "name": "blueberry.SecretBase.Tree0",
+      "file": "assets/Tree0.tmx",
       "type": "Custom:SecretBase.SecretBaseLocation, SecretBase, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
     },
     {
-      "name": "SecretBaseTree1",
-      "file": "assets/SecretBaseTree1.tmx",
+      "name": "blueberry.SecretBase.Tree1",
+      "file": "assets/Tree1.tmx",
       "type": "Custom:SecretBase.SecretBaseLocation, SecretBase, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
     },
     {
-      "name": "SecretBaseTree2",
-      "file": "assets/SecretBaseTree2.tmx",
+      "name": "blueberry.SecretBase.Tree2",
+      "file": "assets/Tree2.tmx",
       "type": "Custom:SecretBase.SecretBaseLocation, SecretBase, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
     },
     {
-      "name": "SecretBaseTree3",
-      "file": "assets/SecretBaseTree3.tmx",
+      "name": "blueberry.SecretBase.Tree3",
+      "file": "assets/Tree3.tmx",
       "type": "Custom:SecretBase.SecretBaseLocation, SecretBase, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
     },
     {
-      "name": "SecretBaseBush0",
-      "file": "assets/SecretBaseBush0.tmx",
+      "name": "blueberry.SecretBase.Bush0",
+      "file": "assets/Bush0.tmx",
       "type": "Custom:SecretBase.SecretBaseLocation, SecretBase, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
     },
     // todo: add SecretBaseBush1, SecretBaseBush2
     {
-      "name": "SecretBaseRock0",
-      "file": "assets/SecretBaseRock0.tmx",
+      "name": "blueberry.SecretBase.Rock0",
+      "file": "assets/Rock0.tmx",
       "type": "Custom:SecretBase.SecretBaseLocation, SecretBase, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
     },
     {
-      "name": "SecretBaseRock1",
-      "file": "assets/SecretBaseRock1.tmx",
+      "name": "blueberry.SecretBase.Rock1",
+      "file": "assets/Rock1.tmx",
       "type": "Custom:SecretBase.SecretBaseLocation, SecretBase, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
     },
     {
-      "name": "SecretBaseRock2",
-      "file": "assets/SecretBaseRock2.tmx",
+      "name": "blueberry.SecretBase.Rock2",
+      "file": "assets/Rock2.tmx",
       "type": "Custom:SecretBase.SecretBaseLocation, SecretBase, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
     },
     {
-      "name": "SecretBaseDesert0",
-      "file": "assets/SecretBaseDesert0.tmx",
+      "name": "blueberry.SecretBase.Desert0",
+      "file": "assets/Desert0.tmx",
       "type": "Custom:SecretBase.SecretBaseLocation, SecretBase, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
     },
     {
-      "name": "SecretBaseDesert1",
-      "file": "assets/SecretBaseDesert1.tmx",
+      "name": "blueberry.SecretBase.Desert1",
+      "file": "assets/Desert1.tmx",
       "type": "Custom:SecretBase.SecretBaseLocation, SecretBase, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
     },
     {
-      "name": "SecretBaseDesert2",
-      "file": "assets/SecretBaseDesert2.tmx",
+      "name": "blueberry.SecretBase.Desert2",
+      "file": "assets/Desert2.tmx",
       "type": "Custom:SecretBase.SecretBaseLocation, SecretBase, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
     }
   ] 
