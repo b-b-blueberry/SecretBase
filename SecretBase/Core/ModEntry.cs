@@ -67,9 +67,12 @@ namespace SecretBase
 			helper.Events.GameLoop.Saving += OnSaving;
 			helper.Events.GameLoop.Saved += OnSaved;
 			helper.Events.GameLoop.ReturnedToTitle += OnReturnedToTitle;
+
 			helper.Events.Input.ButtonReleased += OnButtonReleased;
-			helper.Events.Multiplayer.ModMessageReceived += OnModMessageReceived;
 			helper.Events.Player.Warped += OnWarped;
+			
+			helper.Events.Multiplayer.PeerContextReceived += OnPeerContextReceived;
+			helper.Events.Multiplayer.ModMessageReceived += OnModMessageReceived;
 
 			if (Config.DebugMode)
 			{
@@ -265,6 +268,22 @@ namespace SecretBase
 			if (e.Button.IsActionButton())
 				CheckForAction();
 		}
+		
+		private void OnPeerContextReceived(object sender, PeerContextReceivedEventArgs e)
+		{
+			if (!Context.IsMainPlayer)
+				return;
+
+			Log.W($"Broadcasting from master player: {Game1.player.Name} ({Game1.player.UniqueMultiplayerID}"
+			      + $" / {Game1.MasterPlayer.Name} ({Game1.MasterPlayer.UniqueMultiplayerID}))");
+
+			// Send out broadcasts from all Secret Base locations to set the world state for new players
+			var secretBases = GetAllSecretBases();
+			if (secretBases == null)
+				return;
+			foreach (var secretBase in secretBases)
+				secretBase.BroadcastUpdate(new []{ e.Peer.PlayerID });
+		}
 
 		private void OnModMessageReceived(object sender, ModMessageReceivedEventArgs e)
 		{
@@ -288,7 +307,7 @@ namespace SecretBase
 				{
 					var message = e.ReadAs<UpdateMessage>();
 				
-					Log.D($"Received update from {Game1.getFarmer(e.FromPlayerID)} ({e.FromPlayerID}):"
+					Log.D($"Received update from {Game1.getFarmer(e.FromPlayerID).Name} ({e.FromPlayerID}):"
 					      + $"Location: {message.Location}"
 					      + $"\nOwner: {(message.Owner <= 0 ? "null" : Game1.getFarmer(message.Owner).Name)} ({message.Owner})"
 					      + $"\nHoles fixed: {message.IsHoleFixed}");

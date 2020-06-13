@@ -351,6 +351,11 @@ namespace SecretBase.ModMessages
 			{
 				ModEntry.Instance.RemoveNotificationButton();
 			}
+
+			if (!_showMailbox)
+			{
+				exitThisMenuNoSound();
+			}
 		}
 
 		private void ComposeLetter(bool playSound)

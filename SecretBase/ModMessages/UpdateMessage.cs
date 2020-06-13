@@ -10,12 +10,14 @@ namespace SecretBase.ModMessages
 		public readonly string Location;
 		public readonly long Owner;
 		public readonly bool IsHoleFixed;
+		private readonly long[] _playerIDs;
 
-		public UpdateMessage(string location, long owner, bool isHoleFixed)
+		public UpdateMessage(string location, long owner, bool isHoleFixed, long[] playerIDs)
 		{
 			Location = location;
 			Owner = owner;
 			IsHoleFixed = isHoleFixed;
+			_playerIDs = playerIDs ?? Game1.otherFarmers.Keys.ToArray();
 		}
 
 		public void Send()
@@ -23,7 +25,7 @@ namespace SecretBase.ModMessages
 			ModEntry.Instance.Helper.Multiplayer.SendMessage(
 				this, MessageType,
 				new [] { ModEntry.Instance.ModManifest.UniqueID },
-				Game1.otherFarmers.Keys.ToArray());
+				_playerIDs);
 		}
 	}
 }

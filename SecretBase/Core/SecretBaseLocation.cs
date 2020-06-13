@@ -83,9 +83,9 @@ namespace SecretBase
 			}
 		}
 		
-		internal void BroadcastUpdate()
+		internal void BroadcastUpdate(long[] playerIDs)
 		{
-			new UpdateMessage(Name, Owner, IsHoleFixed).Send();
+			new UpdateMessage(Name, Owner, IsHoleFixed, playerIDs).Send();
 		}
 
 		internal void UpdateFromMessage(UpdateMessage message)
@@ -99,7 +99,7 @@ namespace SecretBase
 			Log.D($"Assigning {who.Name} ({who.UniqueMultiplayerID}) as Owner of {Name}.");
 
 			Owner.Value = who.UniqueMultiplayerID;
-			BroadcastUpdate();
+			BroadcastUpdate(null);
 		}
 
 		internal void Unassign()
@@ -126,7 +126,7 @@ namespace SecretBase
 			// Why did I call this again? Probably important
 			updateMap();
 
-			BroadcastUpdate();
+			BroadcastUpdate(null);
 		}
 
 		/// <summary>
