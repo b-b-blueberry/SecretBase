@@ -1,4 +1,5 @@
 ﻿using System.Linq;
+
 using Microsoft.Xna.Framework;
 using Netcode;
 
@@ -6,6 +7,8 @@ using StardewValley;
 using StardewValley.Locations;
 using StardewValley.Objects;
 using StardewValley.Tools;
+
+using SecretBase.ModMessages;
 
 namespace SecretBase
 {
@@ -40,7 +43,7 @@ namespace SecretBase
 			_theme = GetTheme(Name);
 			FirstTimeSetup();
 		}
-		
+
 		protected override void initNetFields()
 		{
 			base.initNetFields();
@@ -79,16 +82,30 @@ namespace SecretBase
 				Log.D($"{(TryFixHoles() ? "Did" : "Didn't")} fix holes on startup for {Name}.");
 			}
 		}
+		
+		internal void BroadcastUpdate()
+		{
+			new UpdateMessage(Name, Owner, IsHoleFixed).Send();
+		}
+
+		internal void UpdateFromMessage(UpdateMessage message)
+		{
+			Owner.Value = message.Owner;
+			IsHoleFixed.Value = message.IsHoleFixed;
+		}
 
 		internal void Assign(Farmer who)
 		{
 			Log.D($"Assigning {who.Name} ({who.UniqueMultiplayerID}) as Owner of {Name}.");
+
 			Owner.Value = who.UniqueMultiplayerID;
+			BroadcastUpdate();
 		}
 
 		internal void Unassign()
 		{
 			Log.D($"Unassigning {(Owner > 0 ? Game1.getFarmer(Owner).Name : "null")} ({Owner}) from {Name}.");
+
 			Reset();
 		}
 		
@@ -108,6 +125,8 @@ namespace SecretBase
 			
 			// Why did I call this again? Probably important
 			updateMap();
+
+			BroadcastUpdate();
 		}
 
 		/// <summary>

@@ -179,17 +179,18 @@ namespace SecretBase.ModMessages
 			: this()
 		{
 			_showMailbox = false;
-			_showLetter = true;
 
 			// Add an extra notification for composing a new request
-			OpenLetter(true,
+			OpenLetter(false,
 				new Notification(
-				Notification.RequestCode.Requested,
-				Notification.DurationCode.None,
+				NotifCodes.RequestCode.Requested,
+				NotifCodes.DurationCode.None,
 				composeToWho,
 				Game1.player.UniqueMultiplayerID,
 				null,
 				null));
+			ComposeLetter(true);
+			ChangeButtonFormatting();
 		}
 
 		private void PaginateNotifications()
@@ -218,7 +219,7 @@ namespace SecretBase.ModMessages
 			// Send/trash button, used for compose and send for request letters or trashing response letters
 			if (_composingLetter
 			    || _currentNotification == null
-			    || _currentNotification.Request == Notification.RequestCode.Requested)
+			    || _currentNotification.Request == NotifCodes.RequestCode.Requested)
 			{
 				// Send/compose icon
 				_sendLetterButton.bounds = new Rectangle(
@@ -274,7 +275,7 @@ namespace SecretBase.ModMessages
 				else
 				{
 					// Arrange horizontally for reply options
-					numBtns = _currentNotification == null || _currentNotification.Request == Notification.RequestCode.Requested 
+					numBtns = _currentNotification == null || _currentNotification.Request == NotifCodes.RequestCode.Requested 
 						? 2
 						: 3;
 					_notificationButtons[i].bounds = new Rectangle(
@@ -380,7 +381,7 @@ namespace SecretBase.ModMessages
 
 			// Remove the original request when the response is sent
 			_notifications.RemoveAll(n =>
-				n.Request == Notification.RequestCode.Requested
+				n.Request == NotifCodes.RequestCode.Requested
 				&& n.Guest == _currentNotification.Guest);
 			PaginateNotifications();
 			CloseLetter(false);
@@ -456,7 +457,7 @@ namespace SecretBase.ModMessages
 
 			if (_showLetter)
 			{
-				_sendLetterButton.tryHover(x, y, _currentNotification.Request == Notification.RequestCode.Requested
+				_sendLetterButton.tryHover(x, y, _currentNotification.Request == NotifCodes.RequestCode.Requested
 					? 0.5f
 					: 0.2f);
 
@@ -464,13 +465,13 @@ namespace SecretBase.ModMessages
 				{
 					_hoverText = i18n.Get(_composingLetter
 						? "notification.send_inspect"
-						: _currentNotification.Request == Notification.RequestCode.Requested 
+						: _currentNotification.Request == NotifCodes.RequestCode.Requested 
 							? "notification.compose_inspect"
 							: "notification.trashcan_inspect");
 
 					if (!_sendLetterButton.containsPoint(Game1.getOldMouseX(), Game1.getOldMouseY()))
 					{
-						Game1.playSound(_currentNotification.Request == Notification.RequestCode.Requested
+						Game1.playSound(_currentNotification.Request == NotifCodes.RequestCode.Requested
 							? "dwop"
 							: "trashcanlid");
 					}
@@ -511,7 +512,7 @@ namespace SecretBase.ModMessages
 					Log.W("CurrentNotification Request: " + _currentNotification.Request
 					                                      + ", Duration: " + _currentNotification.Duration);
 
-					if (_currentNotification.Request == Notification.RequestCode.Requested)
+					if (!_composingLetter && _currentNotification.Request == NotifCodes.RequestCode.Requested)
 						_showReplyPrompt = true;
 					else if (_composingLetter)
 						SendLetter(true);
@@ -550,15 +551,15 @@ namespace SecretBase.ModMessages
 					}
 					else if (_showReplyPrompt)
 					{
-						if (_currentNotification.Request == Notification.RequestCode.Requested)
+						if (_currentNotification.Request == NotifCodes.RequestCode.Requested)
 						{
-							var request = Notification.RequestCode.Requested;
+							var request = NotifCodes.RequestCode.Requested;
 							if (_notificationButtons[0].containsPoint(x, y))
-								request = Notification.RequestCode.Allowed;
+								request = NotifCodes.RequestCode.Allowed;
 							else if (_notificationButtons[1].containsPoint(x, y))
-								request = Notification.RequestCode.Denied;
+								request = NotifCodes.RequestCode.Denied;
 
-							if (request != Notification.RequestCode.Requested)
+							if (request != NotifCodes.RequestCode.Requested)
 							{
 								Game1.playSound("smallSelect");
 
@@ -573,17 +574,17 @@ namespace SecretBase.ModMessages
 								CloseLetter(true);
 							}
 						}
-						else if (_currentNotification.Duration == Notification.DurationCode.None)
+						else if (_currentNotification.Duration == NotifCodes.DurationCode.None)
 						{
-							var duration = Notification.DurationCode.None;
+							var duration = NotifCodes.DurationCode.None;
 							if (_notificationButtons[0].containsPoint(x, y))
-								duration = Notification.DurationCode.Once;
+								duration = NotifCodes.DurationCode.Once;
 							else if (_notificationButtons[1].containsPoint(x, y))
-								duration = Notification.DurationCode.Today;
+								duration = NotifCodes.DurationCode.Today;
 							else if (_notificationButtons[2].containsPoint(x, y))
-								duration = Notification.DurationCode.Always;
+								duration = NotifCodes.DurationCode.Always;
 
-							if (duration != Notification.DurationCode.None)
+							if (duration != NotifCodes.DurationCode.None)
 							{
 								Game1.playSound("smallSelect");
 
@@ -754,14 +755,14 @@ namespace SecretBase.ModMessages
 							1 => "letter."
 								 + _currentNotification.Request switch
 								 {
-									 Notification.RequestCode.Requested => "request.",
-									 Notification.RequestCode.Allowed => "allowed.",
-									 Notification.RequestCode.Denied => "denied."
+									 NotifCodes.RequestCode.Requested => "request.",
+									 NotifCodes.RequestCode.Allowed => "allowed.",
+									 NotifCodes.RequestCode.Denied => "denied."
 								 } 
 								 + _currentNotification.MessageTokens[1],
 							// Second line, "letter.(duration||owner).(number)"
 							2 => "letter."
-							     + (_currentNotification.Request == Notification.RequestCode.Requested
+							     + (_currentNotification.Request == NotifCodes.RequestCode.Requested
 								     ? "duration."
 								     : "owner.") 
 							     + _currentNotification.MessageTokens[2],
@@ -776,7 +777,7 @@ namespace SecretBase.ModMessages
 						str = i18n.Get(str, new
 						{
 							greeting = i18n.Get("letter.intro." + _currentNotification.MessageTokens[0]),
-							recipient = (_currentNotification.Request == Notification.RequestCode.Requested
+							recipient = (_currentNotification.Request == NotifCodes.RequestCode.Requested
 								? Game1.getFarmer(_currentNotification.Owner).Name
 								: Game1.getFarmer(_currentNotification.Guest).Name),
 							someone = _currentNotification.SomeoneTokens[i],
@@ -829,7 +830,7 @@ namespace SecretBase.ModMessages
 				// Accept/decline prompt
 				SpriteText.drawStringHorizontallyCenteredAt(b,
 					i18n.Get(
-						(_currentNotification.Request == Notification.RequestCode.Requested 
+						(_currentNotification.Request == NotifCodes.RequestCode.Requested 
 							? "notification.response_prompt" 
 							: "notification.duration_prompt"), new {
 							guest = Game1.getFarmer(_currentNotification.Guest).Name
@@ -841,7 +842,7 @@ namespace SecretBase.ModMessages
 					_notificationButtons[0].bounds.Height);
 				
 				// Option buttons
-				var numBtns = _currentNotification.Request == Notification.RequestCode.Requested
+				var numBtns = _currentNotification.Request == NotifCodes.RequestCode.Requested
 					? 2
 					: 3;
 				for (var i = 0; i < numBtns; ++i) {
@@ -861,7 +862,7 @@ namespace SecretBase.ModMessages
 					
 					// Option text
 					var whichStr = "";
-					if (_currentNotification.Request == Notification.RequestCode.Requested)
+					if (_currentNotification.Request == NotifCodes.RequestCode.Requested)
 						whichStr = i == 0
 							? "allow"
 							: "deny";

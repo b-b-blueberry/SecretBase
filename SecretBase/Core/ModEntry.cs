@@ -12,14 +12,14 @@ using StardewValley.Menus;
 
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using PyTK.Extensions;
 using xTile.Dimensions;
 using xTile.ObjectModel;
-
-using SecretBase.ModMessages;
 using xTile;
 using xTile.Layers;
 using xTile.Tiles;
+
+using PyTK.Extensions;
+using SecretBase.ModMessages;
 
 namespace SecretBase
 {
@@ -266,25 +266,43 @@ namespace SecretBase
 				CheckForAction();
 		}
 
-		private void SuppressInteractionButtons(object sender, ButtonPressedEventArgs e)
-		{
-			if (!e.Button.IsActionButton() && !e.Button.IsUseToolButton())
-				return;
-
-			Helper.Input.Suppress(e.Button);
-		}
-
 		private void OnModMessageReceived(object sender, ModMessageReceivedEventArgs e)
 		{
-			if (e.FromModID != ModManifest.UniqueID || e.Type != Notification.MessageType)
+			if (e.FromModID != ModManifest.UniqueID)
 				return;
 
-			var notification = e.ReadAs<Notification>();
+			switch (e.Type)
+			{
+				case Notification.MessageType:
+				{
+					var message = e.ReadAs<Notification>();
 
-			Log.D($"Received mail from {Game1.getFarmer(e.FromPlayerID)} ({e.FromPlayerID}):\n{notification.Summary}");
+					Log.D($"Received mail from {Game1.getFarmer(e.FromPlayerID)} ({e.FromPlayerID}):"
+					      + $"\n{message.Summary}");
 			
-			ModState.SecretBaseGuestList[e.FromPlayerID] = notification;
-			AddNewPendingNotification(notification);
+					ModState.SecretBaseGuestList[e.FromPlayerID] = message;
+					AddNewPendingNotification(message);
+					break;
+				}
+				case UpdateMessage.MessageType:
+				{
+					var message = e.ReadAs<UpdateMessage>();
+				
+					Log.D($"Received update from {Game1.getFarmer(e.FromPlayerID)} ({e.FromPlayerID}):"
+					      + $"Location: {message.Location}"
+					      + $"\nOwner: {(message.Owner <= 0 ? "null" : Game1.getFarmer(message.Owner).Name)} ({message.Owner})"
+					      + $"\nHoles fixed: {message.IsHoleFixed}");
+
+					if (string.IsNullOrEmpty(message.Location) || Game1.getLocationFromName(message.Location) == null)
+					{
+						Log.E($"No location found for value in multiplayer location update message: {message.Location ?? "null"}");
+						return;
+					}
+
+					(Game1.getLocationFromName(message.Location) as SecretBaseLocation).UpdateFromMessage(message);
+					break;
+				}
+			}
 		}
 
 		private void AddNewPendingNotification(Notification notification)
@@ -321,6 +339,14 @@ namespace SecretBase
 			}
 		}
 		
+		private void SuppressInteractionButtons(object sender, ButtonPressedEventArgs e)
+		{
+			if (!e.Button.IsActionButton() && !e.Button.IsUseToolButton())
+				return;
+
+			Helper.Input.Suppress(e.Button);
+		}
+
 		#endregion
 		
 		#region Getter Methods
@@ -421,7 +447,7 @@ namespace SecretBase
 					&& secretBase.Owner.Value > 0
 				    && ModState != null
 				    && ModState.SecretBaseGuestList.ContainsKey(secretBase.Owner.Value)
-				    && ModState.SecretBaseGuestList[secretBase.Owner.Value].Request != Notification.RequestCode.Allowed)
+				    && ModState.SecretBaseGuestList[secretBase.Owner.Value].Request != NotifCodes.RequestCode.Allowed)
 					status = BaseStatus.EntryDenied;
 				// Player isn't yet on the owner's guest list
 				else
@@ -1180,13 +1206,13 @@ namespace SecretBase
 
 			var farmer = Game1.player.UniqueMultiplayerID;
 			AddNewPendingNotification(new Notification(
-				Notification.RequestCode.Allowed, Notification.DurationCode.Once, farmer, farmer, null, null));
+				NotifCodes.RequestCode.Allowed, NotifCodes.DurationCode.Once, farmer, farmer, null, null));
 			AddNewPendingNotification(new Notification(
-				Notification.RequestCode.Denied, Notification.DurationCode.Today, farmer, farmer, null, null));
+				NotifCodes.RequestCode.Denied, NotifCodes.DurationCode.Today, farmer, farmer, null, null));
 			AddNewPendingNotification(new Notification(
-				Notification.RequestCode.Allowed, Notification.DurationCode.Always, farmer, farmer, null, null));
+				NotifCodes.RequestCode.Allowed, NotifCodes.DurationCode.Always, farmer, farmer, null, null));
 			AddNewPendingNotification(new Notification(
-				Notification.RequestCode.Requested, Notification.DurationCode.None, farmer, farmer, null, null));
+				NotifCodes.RequestCode.Requested, NotifCodes.DurationCode.None, farmer, farmer, null, null));
 
 			Log.D($"Added notifications: {count} => {PendingNotifications.Count}");
 		}

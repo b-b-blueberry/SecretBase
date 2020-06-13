@@ -7,7 +7,6 @@ using StardewModdingAPI;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Rectangle = Microsoft.Xna.Framework.Rectangle;
-
 using xTile;
 using xTile.Dimensions;
 

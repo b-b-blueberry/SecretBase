@@ -2,7 +2,7 @@
 
 namespace SecretBase.ModMessages
 {
-	public class Notification
+	public static class NotifCodes
 	{
 		public enum RequestCode
 		{
@@ -18,18 +18,21 @@ namespace SecretBase.ModMessages
 			Today,
 			Always
 		}
+	}
 
+	public class Notification
+	{
 		public const string MessageType = "Notification";
 
-		public RequestCode Request;
-		public DurationCode Duration;
+		public NotifCodes.RequestCode Request;
+		public NotifCodes.DurationCode Duration;
 		public readonly long Owner;
 		public readonly long Guest;
 		public string Summary;
 		public int[] MessageTokens;
 		public string[] SomeoneTokens;
 
-		public Notification(RequestCode request, DurationCode duration, long owner, long guest,
+		public Notification(NotifCodes.RequestCode request, NotifCodes.DurationCode duration, long owner, long guest,
 			int[] messageTokens, string[] someoneTokens)
 		{
 			Request = request;
@@ -70,18 +73,18 @@ namespace SecretBase.ModMessages
 		{
 			var messageRequest = Request switch
 			{
-				RequestCode.Allowed => "allowed",
-				RequestCode.Denied => "denied",
+				NotifCodes.RequestCode.Allowed => "allowed",
+				NotifCodes.RequestCode.Denied => "denied",
 				_ => "requested"
 			};
 			var messageDuration = Duration switch
 			{
-				DurationCode.Once => "once",
-				DurationCode.Today => "today",
-				DurationCode.Always => "always",
+				NotifCodes.DurationCode.Once => "once",
+				NotifCodes.DurationCode.Today => "today",
+				NotifCodes.DurationCode.Always => "always",
 				_ => "none"
 			};
-			var composeToWho = Request == RequestCode.Requested
+			var composeToWho = Request == NotifCodes.RequestCode.Requested
 				? Guest
 				: Owner;
 
@@ -95,7 +98,7 @@ namespace SecretBase.ModMessages
 
 		public void Send()
 		{
-			var recipient = Request == RequestCode.Requested ? Owner : Guest;
+			var recipient = Request == NotifCodes.RequestCode.Requested ? Owner : Guest;
 			Log.D($"Sending mail to {Game1.getFarmer(recipient)} ({recipient}):\n{Summary}");
 			ModEntry.Instance.Helper.Multiplayer.SendMessage(
 				this, MessageType,
