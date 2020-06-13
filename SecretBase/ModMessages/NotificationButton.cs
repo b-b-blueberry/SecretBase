@@ -10,7 +10,7 @@ using Rectangle = Microsoft.Xna.Framework.Rectangle;
 namespace SecretBase.ModMessages
 {
 	// TODO: SYSTEM: Add a 'leave peer's secret base' prompt while in a peer's base to prevent jailing
-	// TODO: SYSTEM: Add a 'evict guests' button to remove and block guests
+	// TODO: SYSTEM: Add an 'evict guests' button to remove and block guests
 
 	/// <summary>
 	/// This is a big stupid class.
@@ -121,7 +121,7 @@ namespace SecretBase.ModMessages
 				SpriteEffects.None,
 				0.99f - 1f / 10000f);
 
-			if (_pulseTimer <= 0 || !ModEntry.ModState.HasUnreadSecretMail)
+			if (_pulseTimer <= 0 || !ModEntry.ModState.PlayerHasUnreadMail)
 				return;
 
 			var scaleMult = 1f / (Math.Max(300f, Math.Abs(_pulseTimer % 1000 - 500)) / 500f);

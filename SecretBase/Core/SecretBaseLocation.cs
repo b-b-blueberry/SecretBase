@@ -1,85 +1,189 @@
-﻿using StardewValley;
+﻿using System.Linq;
+using Microsoft.Xna.Framework;
+using Netcode;
+
+using StardewValley;
 using StardewValley.Locations;
 using StardewValley.Objects;
+using StardewValley.Tools;
 
 namespace SecretBase
 {
 	public class SecretBaseLocation : DecoratableLocation
 	{
-		private bool _areHolesFixed;
+		public enum Theme
+		{
+			Tree,
+			Rock,
+			Bush,
+			Desert,
+			Cave
+		}
+
+		// Net fields
+		internal readonly NetLong Owner = new NetLong(-1);
+		internal readonly NetBool IsHoleFixed = new NetBool(false);
+
+		// Local field
+		private readonly Theme _theme;
 
 		public SecretBaseLocation()
 			: base()
 		{
-			Setup();
+			_theme = GetTheme(Name);
+			FirstTimeSetup();
 		}
 
 		public SecretBaseLocation(string mapPath, string name)
 			: base(mapPath, name)
 		{
-			Setup();
+			_theme = GetTheme(Name);
+			FirstTimeSetup();
+		}
+		
+		protected override void initNetFields()
+		{
+			base.initNetFields();
+			NetFields.AddFields(Owner, IsHoleFixed);
 		}
 
-		private void Setup()
+		private void FirstTimeSetup()
 		{
 			Log.D($"Setting up {Name}",
 				ModEntry.Instance.Config.DebugMode);
+			
+			// Patch functional return warp coords into the dummy values for the Warp property
+			var warp = ((string)Map.Properties["Warp"]).Split(' ');
+			var coords = ModEntry.GetSecretBaseCoordinates(Name);
+			var dest = ModEntry.GetSecretBaseLocation(Name);
+			if (warp.Length == 0 || coords == Vector2.Zero || dest == null)
+			{
+				Log.E($"Failed to patch in warp properties for {Name} in setup:"
+				      + $"\nWarp: {(warp.Length <= 0 ? "null" : warp.Aggregate((a,b) => $"{a} / {b}"))}"
+				      + $"\nCoords: {(coords == Vector2.Zero ? "null" : coords.ToString())}"
+				      + $"\nLocation: {dest ?? "null"}");
+			}
+			else
+			{
+				warp[2] = dest;
+				warp[3] = (coords.X).ToString();
+				warp[4] = (coords.Y + 2f).ToString();
+				Map.Properties["Warp"] = string.Join(" ", warp);
+				updateWarps();
+			}
 
 			// Fix holes for bases owned by farmers who've fixed the holes in their current base previously
-			if (ModEntry.ShouldFarmersSecretBaseHolesBeFixed(Game1.player))
-				FixHoles(true);
+			if (ModEntry.ModState != null
+			    && ModEntry.ModState.HasPlayerFixedHolesForever)
+			{
+				Log.D($"{(TryFixHoles() ? "Did" : "Didn't")} fix holes on startup for {Name}.");
+			}
+		}
+
+		internal void Assign(Farmer who)
+		{
+			Log.D($"Assigning {who.Name} ({who.UniqueMultiplayerID}) as Owner of {Name}.");
+			Owner.Value = who.UniqueMultiplayerID;
+		}
+
+		internal void Unassign()
+		{
+			Log.D($"Unassigning {(Owner > 0 ? Game1.getFarmer(Owner).Name : "null")} ({Owner}) from {Name}.");
+			Reset();
 		}
 		
-		internal void Reset()
+		private void Reset()
 		{
 			Log.D($"Resetting Secret Base at {Name}...",
 				ModEntry.Instance.Config.DebugMode);
-
-			ModEntry.Instance.Helper.Content.InvalidateCache($@"Maps/{Name}");
 			
-			var whomst = ModEntry.DoesAnyoneOwnSecretBase(Name);
-			var owner = whomst == null ? null : Game1.getFarmer(whomst.Value);
+			// Remove ownership
+			Owner.Value = -1;
 
 			// Mark floor holes as not fixed
-			_areHolesFixed = false;
-			if (owner != null && ModEntry.ShouldFarmersSecretBaseHolesBeFixed(owner))
-				ModEntry.ModState.FarmersWithFixedHoles[owner.UniqueMultiplayerID] = false;
+			IsHoleFixed.Value = false;
 
-			Setup();
-
+			// Reset map tiles
+			ModEntry.EditVanillaMap(Map, Name);
+			
 			// Why did I call this again? Probably important
 			updateMap();
 		}
 
-		private bool CheckForValidOwner(Farmer who)
-		{
-			return CheckForValidOwner(who.UniqueMultiplayerID);
-		}
-
-		private bool CheckForValidOwner(long? whomst)
-		{
-			var owner = ModEntry.DoesAnyoneOwnSecretBase(Name);
-			if (whomst == null || owner == null || owner != whomst)
-			{
-				Log.E("Farmer acting in call"
-				      + $" ({(whomst == null ? "null" : Game1.getFarmer(whomst.Value)?.Name)}) doesn't own this Secret Base"
-				      + $" ({Name}, owned by {(owner != null ? Game1.getFarmer(owner.Value).Name : "null")})");
-				return false;
-			}
-			return true;
+		/// <summary>
+		/// Visual changes in the world are tied to the theming of each Secret Base.
+		/// A rock Secret Base appears on certain layers with certain tiles, and creates
+		/// different visual and sound effects on use compared to a tree Secret Base, for example.
+		/// </summary>
+		/// <param name="name">Map name for the Secret Base.</param>
+		/// <returns>Theme value appropriate to the name of the Secret Base.</returns>
+		internal static Theme GetTheme(string name) {
+			var theme = Theme.Tree;
+			if (name.Contains("R"))
+				theme = Theme.Rock;
+			else if (name.Contains("Bu"))
+				theme = Theme.Bush;
+			else if (name.Contains("D"))
+				theme = Theme.Desert;
+			else if (name.Contains("C"))
+				theme = Theme.Cave;
+			return theme;
 		}
 		
+		internal Theme GetTheme()
+		{
+			return _theme;
+		}
+
+		/// <summary>
+		/// Different tools are used to interact with the entries of secret bases
+		/// from different visual themes.
+		/// </summary>
+		/// <returns>Returns the tool suited to this theme.</returns>
+		public Item GetToolForTheme(Farmer who)
+		{
+			if (who == null)
+				return null;
+
+			switch (_theme)
+			{
+				// Scythe:
+				case Theme.Tree:
+				case Theme.Bush:
+					return who.Items.FirstOrDefault(item =>
+						item is MeleeWeapon weapon && weapon.InitialParentTileIndex == 47);
+
+				// Pickaxe:
+				case Theme.Rock:
+				case Theme.Cave:
+				case Theme.Desert:
+					return who.getToolFromName("Pickaxe");
+
+				default:
+					return null;
+			}
+		}
+
+		internal void Warp(Farmer who)
+		{
+			if (who == null)
+				return;
+
+			var dest = ((string)Map.Properties["Warp"]).Split(' ');
+			who.warpFarmer(new Warp(0, 0, Name, 
+				int.Parse(dest[0]), int.Parse(dest[1]) - 1, false));
+		}
+
 		internal void EvictFarmers(bool evictOwner)
 		{
 			Log.D($"Evicting farmers from {Name} (evict owner: {evictOwner})",
 				ModEntry.Instance.Config.DebugMode);
 
 			// Evict all players from this Secret Base
-			var coords = ModEntry.GetSecretBaseCoordinates(Name);
-			var owner = ModEntry.DoesAnyoneOwnSecretBase(Name);
+			var coords = ModConsts.BaseEntryCoordinates[Name];
 			foreach (var farmer in farmers)
 			{
-				if (!evictOwner && farmer.UniqueMultiplayerID == owner)
+				if (!evictOwner && Owner > 0 && farmer.UniqueMultiplayerID == Owner)
 					continue;
 				farmer.warpFarmer(new Warp(0, 0,
 					ModConsts.BaseEntryLocations[Name],
@@ -123,22 +227,16 @@ namespace SecretBase
 		/// </summary>
 		internal void PackUpAndShipOut(Farmer who)
 		{
-			if (!CheckForValidOwner(who))
-				return;
-			
-			var isDebug = ModEntry.Instance.Config.DebugMode;
 			Log.D($"Packing up {Name} and shipping out",
-				isDebug);
+				ModEntry.Instance.Config.DebugMode);
 
 			// Remove all players from the Secret Base
 			EvictFarmers(true);
 
 			// Remove all placed objects from the map and save them to the global storage data model
-			MoveObjectsToStorage(who);
+			if (who != null)
+				MoveObjectsToStorage(who);
 			
-			// Remove ownership
-			ModEntry.ClearSecretBaseFromFarmer(who);
-
 			// Reset map state
 			Reset();
 		}
@@ -168,11 +266,26 @@ namespace SecretBase
 		}
 
 		/// <summary>
+		/// Fix holes if the player has been marked as being able to.
+		/// </summary>
+		/// <returns>Whether or not the player was able to fix holes.</returns>
+		internal bool TryFixHoles() {
+			if (Owner.Value > 0
+			    && ModEntry.ModState != null
+			    && ModEntry.ModState.CanPlayerFixHoles)
+			{
+				FixHoles(true);
+				return true;
+			}
+			return false;
+		}
+
+		/// <summary>
 		/// Replaces obstructions in a secret base with non-obstructive pathable tiles.
 		/// </summary>
 		internal void FixHoles(bool forceAbleToFixHoles)
 		{
-			if (_areHolesFixed)
+			if (IsHoleFixed)
 			{
 				Log.D($"Holes already fixed in {Name}.",
 					ModEntry.Instance.Config.DebugMode);
@@ -182,20 +295,11 @@ namespace SecretBase
 			Log.D($"Fixing holes at {Name}",
 				ModEntry.Instance.Config.DebugMode);
 
-			var whomst = ModEntry.DoesAnyoneOwnSecretBase(Name);
-			if (!CheckForValidOwner(whomst))
-				return;
-			var owner = Game1.getFarmer(whomst.Value);
-
 			if (forceAbleToFixHoles)
 			{
 				// Ensure farmer is marked as able to fix holes
-				if (!ModEntry.CanFarmerFixHoles(Game1.getFarmer(owner.UniqueMultiplayerID)))
-					ModEntry.ModState.FarmersWhoCanFixHoles[owner.UniqueMultiplayerID] = true;
-
-				// Mark the holes in the farmer's base as fixed
-				if (!ModEntry.ShouldFarmersSecretBaseHolesBeFixed(owner))
-					ModEntry.ModState.FarmersWithFixedHoles[owner.UniqueMultiplayerID] = true;
+				ModEntry.ModState.CanPlayerFixHoles = true;
+				ModEntry.ModState.HasPlayerFixedHolesForever = true;
 			}
 			
 			// Why did I call this again? Probably important
@@ -204,9 +308,7 @@ namespace SecretBase
 			// Fetch the holes that need patching over
 			var holeList = ModConsts.BaseHoleCoordinates[Name];
 
-			var str = "";
-			foreach (var hole in holeList)
-				str += $"{hole.Location.ToString()} ";
+			var str = holeList.Aggregate("", (current, hole) => current + $"{hole.Location.ToString()}\n");
 			Log.D($"Fixing {holeList.Count} holes: {str}");
 			
 			// Grab the Secret Base interior tilesheet index, we'll need it for the patch
@@ -216,16 +318,12 @@ namespace SecretBase
 			if (tilesheet != null)
 			{
 				for (whichTileSheet = Map.TileSheets.Count - 1; whichTileSheet > 0; --whichTileSheet)
-				{
 					if (Map.TileSheets[whichTileSheet].Id == tilesheet.Id)
-					{
 						break;
-					}
-				}
 			}
 			if (tilesheet == null || whichTileSheet < 0 || Map.TileSheets[whichTileSheet].Id != tilesheet.Id)
 			{
-				var message = $"Failed to fetch the interiors tilesheet '{tilesheetName}'.";
+				var message = $"Failed to fetch the interiors tilesheet '{tilesheetName}' for {Name}.";
 				Log.E(message);
 				Game1.showGlobalMessage(message);
 				return;
@@ -235,7 +333,7 @@ namespace SecretBase
 			foreach (var hole in holeList)
 			{
 				// Use vertical or horizontal plank sprites depending on the hole position in the map
-				var plank = new Microsoft.Xna.Framework.Rectangle(
+				var plank = new Rectangle(
 					hole.Width > hole.Height ? 0 : 3, 4, hole.Width, hole.Height);
 				var plankIndex = tilesheet.SheetWidth * plank.Y + plank.X;
 				const string layer = "Buildings";
@@ -256,7 +354,7 @@ namespace SecretBase
 				}
 			}
 
-			_areHolesFixed = true;
+			IsHoleFixed.Value = true;
 		}
 	}
 }

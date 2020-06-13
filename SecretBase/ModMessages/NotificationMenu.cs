@@ -37,7 +37,7 @@ namespace SecretBase.ModMessages
 		private bool _showLetter;
 		private bool _showReplyPrompt;
 		
-		// Menu points
+		// Menu dimensions
 		private const int MenuWidth = 680;
 		private const int MenuHeight = 480;
 		private Point _centre;
@@ -67,7 +67,7 @@ namespace SecretBase.ModMessages
 			_letterTexture = Game1.temporaryContent.Load<Texture2D>("LooseSprites\\letterBG");
 			
 			Game1.playSound("bigSelect");
-			ModEntry.ModState.HasUnreadSecretMail = false;
+			ModEntry.ModState.PlayerHasUnreadMail = false;
 			
 			// Menu dimensions
 			width = MenuWidth;
@@ -175,7 +175,7 @@ namespace SecretBase.ModMessages
 			}
 		}
 
-		public NotificationMenu(long composeToWhomst)
+		public NotificationMenu(long composeToWho)
 			: this()
 		{
 			_showMailbox = false;
@@ -186,7 +186,7 @@ namespace SecretBase.ModMessages
 				new Notification(
 				Notification.RequestCode.Requested,
 				Notification.DurationCode.None,
-				composeToWhomst,
+				composeToWho,
 				Game1.player.UniqueMultiplayerID,
 				null,
 				null));

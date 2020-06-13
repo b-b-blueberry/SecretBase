@@ -81,13 +81,13 @@ namespace SecretBase.ModMessages
 				DurationCode.Always => "always",
 				_ => "none"
 			};
-			var whomst = Request == RequestCode.Requested
+			var composeToWho = Request == RequestCode.Requested
 				? Guest
 				: Owner;
 
 			Summary = ModEntry.Instance.Helper.Translation.Get("notification.message.format",
 				new {
-					sender = Game1.getFarmer(whomst).Name, 
+					sender = Game1.getFarmer(composeToWho).Name, 
 					request = ModEntry.Instance.i18n.Get("notification.request." + messageRequest), 
 					duration = ModEntry.Instance.i18n.Get("notification.duration." + messageRequest + "." + messageDuration)
 				});

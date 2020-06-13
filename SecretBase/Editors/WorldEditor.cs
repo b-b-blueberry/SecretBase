@@ -1,5 +1,4 @@
-﻿using System;
-using System.IO;
+﻿using System.IO;
 using System.Linq;
 
 using StardewValley;
@@ -11,10 +10,6 @@ using Rectangle = Microsoft.Xna.Framework.Rectangle;
 
 using xTile;
 using xTile.Dimensions;
-using xTile.Layers;
-using xTile.Tiles;
-
-using PyTK.Extensions;
 
 namespace SecretBase.Editors
 {
@@ -47,7 +42,7 @@ namespace SecretBase.Editors
 					return;
 				Log.D($"Patching in {numBasesInThisLocation} secret bases to {name}.",
 					ModEntry.Instance.Config.DebugMode);
-				EditVanillaMap(map, name);
+				ModEntry.EditVanillaMap(map, name);
 			}
 			else if (!asset.AssetNameEquals("LooseSprites\\Cursors"))
 			{}
@@ -125,109 +120,6 @@ namespace SecretBase.Editors
 				_ => 0
 			};
 
-		}
-
-		private void EditVanillaMap(Map map, string name) {
-			// TODO: METHOD: Add seasonal loading for all entry themes once assets are ready
-			// TODO: BUGS: Resolve beach/beach-nightmarket entry patching inconsistency when Night Markets are active
-
-			var path = _helper.Content.GetActualAssetKey(
-				Path.Combine(ModConsts.AssetsPath, $"{ModConsts.OutdoorsStuffTilesheetId}.png"));
-			var texture = _helper.Content.Load<Texture2D>(path);
-
-			// Add secret base tilesheet
-			var tilesheet = new TileSheet(ModConsts.OutdoorsStuffTilesheetId, map, path,
-				new Size(texture.Width / 16, texture.Height / 16),
-				new Size(16, 16));
-			map.AddTileSheet(tilesheet);
-			map.LoadTileSheets(Game1.mapDisplayDevice);
-
-			// Add secret base entries for this map
-			var layer = map.GetLayer("Buildings");
-			layer = new Layer(ModConsts.ExtraLayerId, map, layer.LayerSize, layer.TileSize);
-
-			const int frameInterval = 150;
-			const BlendMode blend = BlendMode.Additive;
-			foreach (var baseLocation in ModConsts.BaseEntryLocations
-				.Where(_ => _.Value.Equals(name)))
-			{
-				var coords = ModConsts.BaseEntryCoordinates[baseLocation.Key];
-				var row = tilesheet.SheetWidth;
-
-				// TODO: ASSETS: Patch in inactive assets once they've been made
-
-				var index = 0;
-				switch (ModEntry.GetSecretBaseTheme(baseLocation.Key))
-				{
-					case ModConsts.Theme.Tree:
-						// exactly two (2) animated tiles
-						index = row * 2;
-						map.GetLayer("Front").Tiles[(int)coords.X, (int)coords.Y] = new AnimatedTile(layer, new[]
-						{
-							new StaticTile(layer, tilesheet, blend, index), new StaticTile(layer, tilesheet, blend, index),
-							new StaticTile(layer, tilesheet, blend, index), new StaticTile(layer, tilesheet, blend, index),
-							new StaticTile(layer, tilesheet, blend, index), new StaticTile(layer, tilesheet, blend, index),
-							new StaticTile(layer, tilesheet, blend, index), new StaticTile(layer, tilesheet, blend, index),
-							new StaticTile(layer, tilesheet, blend, index), new StaticTile(layer, tilesheet, blend, index),
-							new StaticTile(layer, tilesheet, blend, index + 1),
-							new StaticTile(layer, tilesheet, blend, index + 2),
-							new StaticTile(layer, tilesheet, blend, index + 3),
-							new StaticTile(layer, tilesheet, blend, index + 1),
-						}, frameInterval);
-						index += row;
-						map.GetLayer("Buildings").Tiles[(int)coords.X, (int)coords.Y + 1] = new AnimatedTile(layer, new[]
-						{
-							new StaticTile(layer, tilesheet, blend, index), new StaticTile(layer, tilesheet, blend, index),
-							new StaticTile(layer, tilesheet, blend, index), new StaticTile(layer, tilesheet, blend, index),
-							new StaticTile(layer, tilesheet, blend, index), new StaticTile(layer, tilesheet, blend, index),
-							new StaticTile(layer, tilesheet, blend, index), new StaticTile(layer, tilesheet, blend, index),
-							new StaticTile(layer, tilesheet, blend, index), new StaticTile(layer, tilesheet, blend, index),
-							new StaticTile(layer, tilesheet, blend, index + 1),
-							new StaticTile(layer, tilesheet, blend, index + 2),
-							new StaticTile(layer, tilesheet, blend, index + 3),
-							new StaticTile(layer, tilesheet, blend, index + 1),
-						}, frameInterval);
-						break;
-
-					case ModConsts.Theme.Bush:
-						// 2 static tiles
-						index = row * 4;
-						layer.Tiles[(int)coords.X, (int)coords.Y] = new StaticTile(layer, tilesheet, blend, index);
-						index += row;
-						if (map.GetLayer("Buildings").Tiles[(int)coords.X, (int)coords.Y] == null)
-							layer.Tiles[(int)coords.X, (int)coords.Y + 1] = new StaticTile(layer, tilesheet, blend, index);
-						else
-							map.GetLayer("Buildings").Tiles[(int)coords.X, (int)coords.Y + 1]
-								= new StaticTile(layer, tilesheet, blend, index);
-						break;
-						
-					case ModConsts.Theme.Cave:
-					case ModConsts.Theme.Desert:
-					case ModConsts.Theme.Rock:
-						// 2 static tiles
-						index = row * 6;
-						if (map.GetLayer("Buildings").Tiles[(int) coords.X, (int) coords.Y + 1]?.TileIndex == 370)
-							index = row * 8;
-						layer.Tiles[(int)coords.X, (int)coords.Y]
-							= new StaticTile(layer, tilesheet, blend, index);
-						layer.Tiles[(int)coords.X, (int)coords.Y + 1]
-							= new StaticTile(layer, tilesheet, blend, index + row);
-						break;
-
-					default:
-						// and 1 duck egg
-						throw new NotImplementedException($"No theme handling for secret base {name}.");
-				}
-
-				// Enable player interactions
-				map.GetLayer("Buildings").Tiles[(int)coords.X, (int)coords.Y + 1].Properties["Action"]
-					= ModConsts.BaseEntryAction;
-			}
-
-			// Draw the extra layer above Buildings layer
-			layer.Properties["DrawAbove"] = "Buildings";
-			map.AddLayer(layer);
-			map.enableMoreMapLayers();
 		}
 	}
 }
