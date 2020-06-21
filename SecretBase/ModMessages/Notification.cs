@@ -1,4 +1,5 @@
-﻿using StardewValley;
+﻿using Newtonsoft.Json;
+using StardewValley;
 
 namespace SecretBase.ModMessages
 {
@@ -32,6 +33,7 @@ namespace SecretBase.ModMessages
 		public int[] MessageTokens;
 		public string[] SomeoneTokens;
 
+		[JsonConstructor]
 		public Notification(NotifCodes.RequestCode request, NotifCodes.DurationCode duration, long owner, long guest,
 			int[] messageTokens, string[] someoneTokens)
 		{
@@ -54,8 +56,6 @@ namespace SecretBase.ModMessages
 			SetTokens();
 			n.MessageTokens.CopyTo(MessageTokens, 0);
 			n.SomeoneTokens.CopyTo(SomeoneTokens, 0);
-
-			Rebuild();
 		}
 
 		public void SetTokens()
@@ -98,6 +98,8 @@ namespace SecretBase.ModMessages
 
 		public void Send()
 		{
+			Rebuild();
+
 			var recipient = Request == NotifCodes.RequestCode.Requested ? Owner : Guest;
 			Log.D($"Sending mail to {Game1.getFarmer(recipient)} ({recipient}):\n{Summary}");
 			ModEntry.Instance.Helper.Multiplayer.SendMessage(

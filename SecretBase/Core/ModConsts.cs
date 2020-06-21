@@ -61,7 +61,7 @@ namespace SecretBase
 			{ "Tree0", new Vector2(41, 8) },
 			{ "Tree1", new Vector2(62, 8) },
 			{ "Tree2", new Vector2(48, 3) },
-			{ "Tree3", new Vector2(9, 1) },
+			{ "Tree3", new Vector2(29, 10) },
 			{ "Tree4", new Vector2(45, 12) },
 			{ "Tree5", new Vector2(27, 95) },
 

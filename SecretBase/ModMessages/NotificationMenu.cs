@@ -61,6 +61,8 @@ namespace SecretBase.ModMessages
 
 		// TODO: ERRORS: Viewing letters from farmers who have been removed from the world (Game1.getFarmer(...))
 
+		// TODO: SYSTEM: Add full menu navigation with keys or buttons, currently very patchy coverage
+
 		public NotificationMenu()
 			: base(0, 0, 0, 0, true)
 		{
@@ -418,7 +420,7 @@ namespace SecretBase.ModMessages
 					break;
 				}
 
-				if (names[i] == "")
+				if (string.IsNullOrEmpty(names[i]))
 					names[i] = i18n.Get("letter.someone");
 			}
 			return names;
@@ -514,9 +516,6 @@ namespace SecretBase.ModMessages
 			{
 				if (_sendLetterButton.containsPoint(x, y))
 				{
-					Log.W("CurrentNotification Request: " + _currentNotification.Request
-					                                      + ", Duration: " + _currentNotification.Duration);
-
 					if (!_composingLetter && _currentNotification.Request == NotifCodes.RequestCode.Requested)
 						_showReplyPrompt = true;
 					else if (_composingLetter)
@@ -524,17 +523,19 @@ namespace SecretBase.ModMessages
 					else
 						TrashLetter(true);
 				}
-				else 
+				else
 				{
 					if (_composingLetter)
 					{
 						if (_prevButton.bounds.Contains(x, y))
 						{
-							receiveKeyPress(Keys.Left);
+							ChangeLetterLine(Math.Max(_letterLine - 1, 0), true);
+							ChangeButtonFormatting();
 						}
 						else if (_nextButton.bounds.Contains(x, y))
 						{
-							receiveKeyPress(Keys.Right);
+							ChangeLetterLine(Math.Min(_letterLine + 1, 3), true);
+							ChangeButtonFormatting();
 						}
 						else if (!_letter.bounds.Contains(x, y))
 						{
@@ -595,6 +596,7 @@ namespace SecretBase.ModMessages
 
 								// Start composing a letter from our working notification
 								_currentNotification.Duration = duration;
+								_currentNotification.Rebuild();
 								ComposeLetter(true);
 							}
 							else
@@ -657,39 +659,39 @@ namespace SecretBase.ModMessages
 		{
 			base.receiveKeyPress(key);
 
-			switch (key)
+			if (Game1.options.doesInputListContain(Game1.options.moveUpButton, key))
 			{
-				case Keys.W:
-				case Keys.S:
-				case Keys.Up:
-				case Keys.Down:
-					if (_composingLetter)
-					{
-						ChangeLetterLine(key == Keys.Up || key == Keys.W
-							? Math.Max(_letterLine - 1, 0)
-							: Math.Min(_letterLine + 1, 3), true);
-					}
-					break;
-				case Keys.A:
-				case Keys.Left:
-					if (_composingLetter)
-					{
-						Game1.playSound("Cowboy_gunshot");
-						--_currentNotification.MessageTokens[_letterLine];
-						if (_currentNotification.MessageTokens[_letterLine] < 0)
-							_currentNotification.MessageTokens[_letterLine] = 9;
-					}
-					break;
-				case Keys.D:
-				case Keys.Right:
-					if (_composingLetter)
-					{
-						Game1.playSound("Cowboy_gunshot");
-						++_currentNotification.MessageTokens[_letterLine];
-						if (_currentNotification.MessageTokens[_letterLine] > 9)
-							_currentNotification.MessageTokens[_letterLine] = 0;
-					}
-					break;
+				if (_composingLetter)
+				{
+					ChangeLetterLine(Math.Max(_letterLine - 1, 0), true);
+				}
+			}
+			else if (Game1.options.doesInputListContain(Game1.options.moveDownButton, key))
+			{
+				if (_composingLetter)
+				{
+					ChangeLetterLine(Math.Min(_letterLine + 1, 3), true);
+				}
+			}
+			else if (Game1.options.doesInputListContain(Game1.options.moveLeftButton, key))
+			{
+				if (_composingLetter)
+				{
+					Game1.playSound("Cowboy_gunshot");
+					--_currentNotification.MessageTokens[_letterLine];
+					if (_currentNotification.MessageTokens[_letterLine] < 0)
+						_currentNotification.MessageTokens[_letterLine] = 9;
+				}
+			}
+			else if (Game1.options.doesInputListContain(Game1.options.moveRightButton, key))
+			{
+				if (_composingLetter)
+				{
+					Game1.playSound("Cowboy_gunshot");
+					++_currentNotification.MessageTokens[_letterLine];
+					if (_currentNotification.MessageTokens[_letterLine] > 9)
+						_currentNotification.MessageTokens[_letterLine] = 0;
+				}
 			}
 
 			if ((readyToClose()

@@ -1,4 +1,5 @@
 ﻿using System.Linq;
+using Newtonsoft.Json;
 using StardewValley;
 
 namespace SecretBase.ModMessages
@@ -12,6 +13,7 @@ namespace SecretBase.ModMessages
 		public readonly bool IsHoleFixed;
 		private readonly long[] _playerIDs;
 
+		[JsonConstructor]
 		public UpdateMessage(string location, long owner, bool isHoleFixed, long[] playerIDs)
 		{
 			Location = location;

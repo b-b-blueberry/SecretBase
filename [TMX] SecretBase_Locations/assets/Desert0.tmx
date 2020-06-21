@@ -128,7 +128,7 @@
  <objectgroup id="4" name="Buildings">
   <object id="7" name="TileData" x="80" y="144" width="16" height="16">
    <properties>
-    <property name="Action" value="SecretBaseLaptop"/>
+    <property name="Action" value="blueberry.SecretBase.Laptop"/>
    </properties>
   </object>
  </objectgroup>

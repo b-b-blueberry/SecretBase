@@ -296,7 +296,7 @@ namespace SecretBase
 				{
 					var message = e.ReadAs<Notification>();
 
-					Log.D($"Received mail from {Game1.getFarmer(e.FromPlayerID)} ({e.FromPlayerID}):"
+					Log.D($"Received mail from {Game1.getFarmer(e.FromPlayerID).Name} ({e.FromPlayerID}):"
 					      + $"\n{message.Summary}");
 			
 					ModState.SecretBaseGuestList[e.FromPlayerID] = message;
@@ -1035,7 +1035,7 @@ namespace SecretBase
 			map.LoadTileSheets(Game1.mapDisplayDevice);
 
 			// Add secret base entries for this map
-			var layer = map.GetLayer("Buildings");
+			var layer = map.GetLayer("Back");
 			layer = new Layer(ModConsts.ExtraLayerId, map, layer.LayerSize, layer.TileSize);
 
 			const int frameInterval = 150;
@@ -1116,8 +1116,7 @@ namespace SecretBase
 					= ModConsts.BaseEntryAction;
 			}
 
-			// Draw the extra layer above Buildings layer
-			layer.Properties["DrawAbove"] = "Buildings";
+			layer.Properties["DrawAbove"] = "Front";
 			map.AddLayer(layer);
 			map.enableMoreMapLayers();
 		}

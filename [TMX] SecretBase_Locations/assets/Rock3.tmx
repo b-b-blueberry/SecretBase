@@ -144,17 +144,17 @@
  <objectgroup id="6" name="Buildings">
   <object id="15" name="TileData" x="48" y="80" width="16" height="16">
    <properties>
-    <property name="Action" value="SecretBaseLaptop"/>
+    <property name="Action" value="blueberry.SecretBase.Laptop"/>
    </properties>
   </object>
   <object id="22" name="TileData" x="176" y="80" width="16" height="16">
    <properties>
-    <property name="Action" value="SecretBaseHole"/>
+    <property name="Action" value="blueberry.SecretBase.Hole"/>
    </properties>
   </object>
   <object id="23" name="TileData" x="176" y="96" width="16" height="16">
    <properties>
-    <property name="Action" value="SecretBaseHole"/>
+    <property name="Action" value="blueberry.SecretBase.Hole"/>
    </properties>
   </object>
  </objectgroup>
